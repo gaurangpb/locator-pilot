@@ -1,0 +1,181 @@
+:host {
+  all: initial;
+}
+
+.lp-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  font: 13px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #e8ecf3;
+}
+
+.lp-highlight {
+  position: fixed;
+  border: 2px solid #2dd4af;
+  background: rgba(45, 212, 175, 0.14);
+  border-radius: 4px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.lp-highlight.lp-secondary {
+  border-color: #7c8cff;
+  background: rgba(124, 140, 255, 0.14);
+}
+
+.lp-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #141a2e;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lp-banner kbd {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font: inherit;
+}
+
+.lp-panel {
+  position: fixed;
+  width: 380px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #141a2e;
+  color: #e8ecf3;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.lp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.lp-panel-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.lp-close-btn {
+  background: transparent;
+  border: none;
+  color: #9aa3b8;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lp-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.lp-candidate {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.lp-candidate-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.lp-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.lp-badge-strategy {
+  background: rgba(124, 140, 255, 0.18);
+  color: #b3bcff;
+}
+
+.lp-badge-robust {
+  background: rgba(45, 212, 175, 0.18);
+  color: #6fe3c9;
+}
+
+.lp-badge-medium {
+  background: rgba(250, 204, 21, 0.18);
+  color: #facc15;
+}
+
+.lp-badge-fragile {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+.lp-match-count {
+  font-size: 11px;
+  color: #9aa3b8;
+  margin-left: auto;
+}
+
+.lp-code-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.lp-code {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: 12px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  overflow-x: auto;
+  white-space: pre;
+  color: #d8f0ff;
+}
+
+.lp-copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #e8ecf3;
+  border-radius: 6px;
+  padding: 0 10px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.lp-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lp-reason-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: #9aa3b8;
+  font-size: 11px;
+}

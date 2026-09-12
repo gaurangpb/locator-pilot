@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Locator Pilot — Options</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        max-width: 480px;
+        margin: 40px auto;
+        font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #141a2e;
+        color: #e8ecf3;
+        padding: 24px 28px;
+        border-radius: 10px;
+      }
+      h1 {
+        font-size: 18px;
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        color: #cfd5e2;
+        font-size: 13px;
+      }
+      input[type="text"] {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        color: #e8ecf3;
+        font: 13px/1.4 "SFMono-Regular", Consolas, monospace;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+      }
+      .hint {
+        color: #9aa3b8;
+        font-size: 12px;
+        margin: 0 0 16px;
+      }
+      button {
+        background: #2dd4af;
+        color: #04231d;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #status {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #6fe3c9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Locator Pilot — Options</h1>
+
+    <label for="testid-attr">Test-id attribute</label>
+    <input id="testid-attr" type="text" placeholder="data-testid" />
+    <p class="hint">
+      The attribute your team uses to mark elements for testing, e.g. <code>data-testid</code>,
+      <code>data-test</code>, or <code>data-qa</code>. Locator Pilot uses this to build a Test ID
+      locator candidate.
+    </p>
+
+    <button id="save-btn" type="button">Save</button>
+    <span id="status"></span>
+
+    <script src="options.js"></script>
+  </body>
+</html>
