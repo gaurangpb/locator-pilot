@@ -10,13 +10,17 @@ locator back in to find and highlight it on the current page.
   pick an element. The panel stays open. Works inside open shadow roots and same-origin
   iframes. A C# / TypeScript toggle remembers your last choice.
 - **Ranked locator candidates** — up to 3 per element, following Playwright's own
-  priority: role/name → label → placeholder → text → test-id → CSS → XPath. See
-  [docs/LOCATOR_STRATEGY.md](./docs/LOCATOR_STRATEGY.md) for the full precedence and
-  element-resolution rules behind this ranking.
+  priority: role/name → label → placeholder → alt text/title → text → test-id → CSS →
+  XPath. See [docs/LOCATOR_STRATEGY.md](./docs/LOCATOR_STRATEGY.md) for the full
+  precedence and element-resolution rules behind this ranking.
 - **Live uniqueness check** — every candidate shows how many elements on the page it
-  currently matches.
+  currently matches; a non-unique or zero-match candidate gets its own badge color and
+  card border so it's not easy to miss.
 - **Brittleness warnings** — flags locators built on auto-generated class names,
   positional (`nth-child`/indexed XPath) selectors, or unnamed roles.
+- **Pick history & export** — every element you pick is kept in an in-panel history
+  list for the current page session, so you can revisit, copy, or remove earlier
+  picks; "Export" copies every pick's top locator to the clipboard as one block.
 - **Paste-and-find** — paste a Playwright locator call (TS or C#), a classic
   `text=`/`css=`/`xpath=` selector string, or a bare CSS/XPath expression, and it
   highlights every match on the page.
@@ -76,7 +80,9 @@ positioning) — load `dist/` unpacked and try it on a real page as described ab
 - **Text-matching heuristics** approximate Playwright's own `getByText`/accessible-name
   algorithms closely enough for common cases, but are not a full implementation of the
   W3C accname spec.
-- No locator history/persistence in v1 (by design — see the options above).
+- **Pick history is in-memory only**, scoped to the current page load — it resets on
+  reload/navigation and is never written to `chrome.storage` or disk, so it doesn't
+  change the no-persistence privacy stance in [PRIVACY.md](./PRIVACY.md).
 
 ## Compliance notes for Chrome Web Store submission
 

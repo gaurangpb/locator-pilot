@@ -1,3 +1,4 @@
+import { addHistoryEntry, removeHistoryEntry, type HistoryEntry } from "../lib/history";
 import { pickCandidates, refreshCandidates, withExact } from "../lib/locatorEngine";
 import { matchLocator } from "../lib/matcher";
 import {
@@ -68,6 +69,10 @@ function main(): void {
   // message for this pick (live re-check, exact-toggle) — resolution (docs/
   // LOCATOR_STRATEGY.md §1) doesn't change as match counts are refreshed.
   let liveRecheckResolvedVia: ResolutionKind | null = null;
+
+  // In-memory only (see docs/history note in src/lib/history.ts) — resets when the
+  // content script reloads (page navigation), never written to chrome.storage.
+  let history: HistoryEntry[] = [];
 
   document.documentElement.appendChild(host);
   window.addEventListener("scroll", repositionTrackedHighlights, { capture: true, passive: true });
@@ -348,6 +353,14 @@ function main(): void {
         onOptions: () => {
           void chrome.runtime.sendMessage({ type: "open-options" });
         },
+        onRemoveHistoryEntry: (id) => {
+          history = removeHistoryEntry(history, id);
+          panelApi?.setHistory(history);
+        },
+        onClearHistory: () => {
+          history = [];
+          panelApi?.setHistory(history);
+        },
       });
       root.appendChild(panelApi.root);
     }
@@ -368,6 +381,13 @@ function main(): void {
     stopPicker({ keepPanelArmed: false, broadcastStop: true });
     showPanel(pendingLanguage);
     panelApi?.setCandidates(candidates, resolvedVia);
+    history = addHistoryEntry(history, {
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      candidates,
+      resolvedVia,
+    });
+    panelApi?.setHistory(history);
   }
 
   function onFindResult(message: FindResultMessage): void {

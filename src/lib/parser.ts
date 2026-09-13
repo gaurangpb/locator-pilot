@@ -189,7 +189,7 @@ function firstPositionalRole(argsText: string): string | null {
 }
 
 const METHOD_PATTERN =
-  /(getByRole|GetByRole|getByLabel|GetByLabel|getByPlaceholder|GetByPlaceholder|getByText|GetByText|getByTestId|GetByTestId|locator|Locator)\s*\(/;
+  /(getByRole|GetByRole|getByLabel|GetByLabel|getByPlaceholder|GetByPlaceholder|getByAltText|GetByAltText|getByTitle|GetByTitle|getByText|GetByText|getByTestId|GetByTestId|locator|Locator)\s*\(/;
 
 function parseSelectorString(raw: string): LocatorSpec {
   if (raw.startsWith("text=")) return { strategy: "text", text: raw.slice(5), exact: false };
@@ -246,6 +246,18 @@ export function parseLocator(input: string, testIdAttribute: string): ParseResul
         };
       }
       rejectRegexArg(args, "getByPlaceholder");
+    } else if (method === "getbyalttext") {
+      const value = firstPositionalArg(args);
+      if (value !== null) {
+        return { guessed: false, chained, spec: { strategy: "altText", text: value, exact: findExactFlag(args) } };
+      }
+      rejectRegexArg(args, "getByAltText");
+    } else if (method === "getbytitle") {
+      const value = firstPositionalArg(args);
+      if (value !== null) {
+        return { guessed: false, chained, spec: { strategy: "title", text: value, exact: findExactFlag(args) } };
+      }
+      rejectRegexArg(args, "getByTitle");
     } else if (method === "getbytext") {
       const value = firstPositionalArg(args);
       if (value !== null) {

@@ -151,13 +151,12 @@ function buildXPath(el: Element): string {
 
 /**
  * Strategy order here follows docs/LOCATOR_STRATEGY.md §2: role → label →
- * placeholder → text → testId → css → xpath. That doc is the source of truth for
- * *why* — keep it in sync with any change here, including the still-unimplemented
- * pieces it tracks (altText/title strategies, and resolving to a nearby interactive
- * ancestor/descendant when `el` itself has no role — see §1).
+ * placeholder → altText/title → text → testId → css → xpath. That doc is the source
+ * of truth for *why* — keep it in sync with any change here.
  */
 function buildSpecs(el: Element, doc: Document, options: EngineOptions): LocatorSpec[] {
   const specs: LocatorSpec[] = [];
+  const tag = el.tagName.toLowerCase();
   const role = getImplicitRole(el);
 
   if (role) {
@@ -169,7 +168,7 @@ function buildSpecs(el: Element, doc: Document, options: EngineOptions): Locator
     }
   }
 
-  if (FORM_CONTROL_TAGS.has(el.tagName.toLowerCase())) {
+  if (FORM_CONTROL_TAGS.has(tag)) {
     const labelText = findAssociatedLabelText(el, doc);
     if (labelText) specs.push({ strategy: "label", text: labelText, exact: false });
 
@@ -179,7 +178,22 @@ function buildSpecs(el: Element, doc: Document, options: EngineOptions): Locator
     }
   }
 
-  if (CONTENT_TAGS.has(el.tagName.toLowerCase())) {
+  // docs/LOCATOR_STRATEGY.md §2.4 — images/icons without visible text. `alt` only
+  // applies to <img>; `title` is worth a candidate on any element, but only when
+  // there's no visible text already covering the same ground.
+  if (tag === "img") {
+    const alt = el.getAttribute("alt");
+    if (alt !== null && alt.trim()) {
+      specs.push({ strategy: "altText", text: alt.trim(), exact: false });
+    }
+  }
+
+  const titleAttr = el.getAttribute("title");
+  if (titleAttr?.trim() && !ownText(el)) {
+    specs.push({ strategy: "title", text: titleAttr.trim(), exact: false });
+  }
+
+  if (CONTENT_TAGS.has(tag)) {
     const text = ownText(el);
     if (text && text.length <= MAX_TEXT_LENGTH) {
       specs.push({ strategy: "text", text, exact: false });

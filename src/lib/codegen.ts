@@ -30,6 +30,14 @@ export function toCSharp(spec: LocatorSpec): string {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
       return `Page.GetByPlaceholder(${csharpString(spec.text)}${optsArg})`;
     }
+    case "altText": {
+      const optsArg = spec.exact ? `, new() { Exact = true }` : "";
+      return `Page.GetByAltText(${csharpString(spec.text)}${optsArg})`;
+    }
+    case "title": {
+      const optsArg = spec.exact ? `, new() { Exact = true }` : "";
+      return `Page.GetByTitle(${csharpString(spec.text)}${optsArg})`;
+    }
     case "text": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
       return `Page.GetByText(${csharpString(spec.text)}${optsArg})`;
@@ -59,6 +67,14 @@ export function toTypeScript(spec: LocatorSpec): string {
     case "placeholder": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
       return `page.getByPlaceholder(${tsString(spec.text)}${optsArg})`;
+    }
+    case "altText": {
+      const optsArg = spec.exact ? `, { exact: true }` : "";
+      return `page.getByAltText(${tsString(spec.text)}${optsArg})`;
+    }
+    case "title": {
+      const optsArg = spec.exact ? `, { exact: true }` : "";
+      return `page.getByTitle(${tsString(spec.text)}${optsArg})`;
     }
     case "text": {
       const optsArg = spec.exact ? `, { exact: true }` : "";

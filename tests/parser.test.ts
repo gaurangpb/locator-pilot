@@ -19,6 +19,16 @@ describe("parseLocator", () => {
     expect(spec).toMatchObject({ strategy: "role", role: "button", name: "Submit" });
   });
 
+  it("parses getByAltText", () => {
+    const { spec } = parseLocator(`page.getByAltText('Company logo')`, "data-testid");
+    expect(spec).toMatchObject({ strategy: "altText", text: "Company logo" });
+  });
+
+  it("parses C# GetByTitle with Exact option", () => {
+    const { spec } = parseLocator(`Page.GetByTitle("Close", new() { Exact = true })`, "data-testid");
+    expect(spec).toMatchObject({ strategy: "title", text: "Close", exact: true });
+  });
+
   it("parses getByTestId", () => {
     const { spec } = parseLocator(`page.getByTestId('user-menu')`, "data-testid");
     expect(spec).toMatchObject({ strategy: "testId", attribute: "data-testid", value: "user-menu" });

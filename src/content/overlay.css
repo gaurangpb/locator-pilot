@@ -289,6 +289,24 @@
   margin-left: auto;
 }
 
+.lp-match-count-warn {
+  color: #facc15;
+  font-weight: 600;
+}
+
+.lp-match-count-error {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.lp-candidate-nonunique {
+  border-color: rgba(250, 204, 21, 0.4);
+}
+
+.lp-candidate-error {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
 .lp-exact-toggle {
   display: flex;
   align-items: center;
@@ -343,4 +361,76 @@
   padding-left: 16px;
   color: #9aa3b8;
   font-size: 11px;
+}
+
+.lp-section-history {
+  padding: 10px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.lp-history-toggle {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa3b8;
+}
+
+.lp-history-actions {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.lp-history-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-history-entry {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.lp-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.lp-history-time {
+  font-size: 10px;
+  color: #9aa3b8;
+  margin-right: auto;
+}
+
+.lp-history-remove {
+  background: transparent;
+  border: none;
+  color: #9aa3b8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.lp-history-remove:hover {
+  color: #f87171;
+}
+
+.lp-history-code {
+  display: block;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: 11px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: #d8f0ff;
+  overflow-x: auto;
+  white-space: pre;
 }

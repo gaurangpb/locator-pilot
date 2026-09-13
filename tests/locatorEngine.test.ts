@@ -124,6 +124,45 @@ describe("generateCandidates", () => {
   });
 });
 
+describe("generateCandidates — altText/title strategies (docs/LOCATOR_STRATEGY.md §2.4)", () => {
+  it("offers a getByAltText candidate for an image with alt text, alongside its role candidate", () => {
+    const doc = setBody(`<img id="logo" alt="Company logo" src="logo.png" />`);
+    const el = doc.getElementById("logo")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const altCandidate = candidates.find((c) => c.spec.strategy === "altText");
+    expect(altCandidate).toBeDefined();
+    expect(altCandidate?.spec).toMatchObject({ text: "Company logo" });
+    expect(altCandidate?.isUnique).toBe(true);
+  });
+
+  it("does not offer an altText candidate for an image with no alt attribute", () => {
+    const doc = setBody(`<img id="deco" src="deco.png" />`);
+    const el = doc.getElementById("deco")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(candidates.some((c) => c.spec.strategy === "altText")).toBe(false);
+  });
+
+  it("offers a getByTitle candidate for an icon-only element with a title but no visible text", () => {
+    const doc = setBody(`<button id="close" title="Close dialog"></button>`);
+    const el = doc.getElementById("close")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const titleCandidate = candidates.find((c) => c.spec.strategy === "title");
+    expect(titleCandidate).toBeDefined();
+    expect(titleCandidate?.spec).toMatchObject({ text: "Close dialog" });
+  });
+
+  it("does not offer a title candidate when the element already has its own visible text", () => {
+    const doc = setBody(`<button id="save" title="Save your changes">Save</button>`);
+    const el = doc.getElementById("save")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(candidates.some((c) => c.spec.strategy === "title")).toBe(false);
+  });
+});
+
 describe("refreshCandidates", () => {
   it("picks up a match count that changed after the candidates were generated", () => {
     const doc = setBody(`<button class="btn">Save</button>`);

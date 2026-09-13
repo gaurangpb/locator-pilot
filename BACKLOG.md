@@ -40,8 +40,9 @@ Status legend: `[ ]` open, `[x]` done.
 
 > Locator selection/ranking is the core value of this tool — the precedence and
 > resolution rules behind it are written down in
-> [docs/LOCATOR_STRATEGY.md](docs/LOCATOR_STRATEGY.md). The two items below are the
-> not-yet-implemented pieces of that design; keep the doc in sync with any change.
+> [docs/LOCATOR_STRATEGY.md](docs/LOCATOR_STRATEGY.md), and every piece of that design
+> is now implemented (see the checked-off items below). Keep the doc in sync with any
+> future change to ranking/resolution behavior.
 
 - [x] **CSS candidates include transient state/framework classes.** `buildCssSelector`
   only stripped hash-like auto-generated class names — it kept state classes
@@ -85,16 +86,25 @@ Status legend: `[ ]` open, `[x]` done.
   `recompute-exact` broadcast message to the owning frame, which recomputes the
   candidate via the new `withExact` helper in
   [locatorEngine.ts](src/lib/locatorEngine.ts).
-- [ ] **Non-unique candidates aren't visually distinct.** `isUnique` is computed but
-  unused in the UI — a 2-match candidate still gets a green "robust" badge next to
-  muted gray "2 matches" text that's easy to miss. Should affect badge
-  color/border, not just adjacent text.
-- [ ] **No `getByAltText()` / `getByTitle()` candidate strategies.** Accessible-name
-  computation already extracts `alt`/`title`; images only ever get
-  `getByRole('img', {name})`, which works but isn't the idiom most Playwright
-  codebases use.
-- [ ] **No export / history.** Only one candidate can be copied at a time; nothing
-  persists across a debugging session (picking many elements is the common case).
+- [x] **Non-unique candidates aren't visually distinct.** `isUnique` is now factored
+  into the UI: the match-count text turns amber (2+ matches) or red (0 matches) and
+  bolds, and the candidate card gets a matching border color, in
+  [ui.ts](src/content/ui.ts) (`matchCountClass`/`candidateCardClass`) and
+  [overlay.css](src/content/overlay.css).
+- [x] **No `getByAltText()` / `getByTitle()` candidate strategies.** Added as
+  strategies in [types.ts](src/lib/types.ts), generated in `buildSpecs`
+  ([locatorEngine.ts](src/lib/locatorEngine.ts)) alongside (not instead of) the role
+  candidate, with matching support in [matcher.ts](src/lib/matcher.ts),
+  [codegen.ts](src/lib/codegen.ts), [brittleness.ts](src/lib/brittleness.ts), and
+  round-trip parsing in [parser.ts](src/lib/parser.ts). Per
+  [docs/LOCATOR_STRATEGY.md §2.4](docs/LOCATOR_STRATEGY.md#2-strategy-precedence--once-we-know-the-target-element).
+- [x] **No export / history.** Added an in-panel History section
+  ([ui.ts](src/content/ui.ts), [content.ts](src/content/content.ts)) backed by pure
+  helpers in [history.ts](src/lib/history.ts): every pick is appended (capped at 20),
+  each entry can be copied or removed individually, and "Export" copies every pick's
+  top locator to the clipboard as one block. Deliberately in-memory only (resets on
+  page reload) rather than `chrome.storage`-backed, to avoid contradicting
+  [PRIVACY.md](PRIVACY.md)'s "nothing persisted" stance — see README.md.
 
 ## P2 — Hardening / code quality
 

@@ -15,6 +15,16 @@ describe("codegen", () => {
     expect(toTypeScript(spec)).toBe("page.getByText('Say \"hi\"')");
   });
 
+  it("generates altText and title locators for both languages", () => {
+    const altSpec: LocatorSpec = { strategy: "altText", text: "Company logo", exact: false };
+    expect(toCSharp(altSpec)).toBe('Page.GetByAltText("Company logo")');
+    expect(toTypeScript(altSpec)).toBe("page.getByAltText('Company logo')");
+
+    const titleSpec: LocatorSpec = { strategy: "title", text: "Close", exact: true };
+    expect(toCSharp(titleSpec)).toBe('Page.GetByTitle("Close", new() { Exact = true })');
+    expect(toTypeScript(titleSpec)).toBe("page.getByTitle('Close', { exact: true })");
+  });
+
   it("generates a testId locator", () => {
     const spec: LocatorSpec = { strategy: "testId", attribute: "data-testid", value: "user-menu" };
     expect(toCSharp(spec)).toBe('Page.GetByTestId("user-menu")');

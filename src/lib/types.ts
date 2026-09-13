@@ -2,6 +2,8 @@ export type LocatorStrategy =
   | "role"
   | "label"
   | "placeholder"
+  | "altText"
+  | "title"
   | "text"
   | "testId"
   | "css"
@@ -22,6 +24,18 @@ export interface LabelLocatorSpec {
 
 export interface PlaceholderLocatorSpec {
   strategy: "placeholder";
+  text: string;
+  exact: boolean;
+}
+
+export interface AltTextLocatorSpec {
+  strategy: "altText";
+  text: string;
+  exact: boolean;
+}
+
+export interface TitleLocatorSpec {
+  strategy: "title";
   text: string;
   exact: boolean;
 }
@@ -52,6 +66,8 @@ export type LocatorSpec =
   | RoleLocatorSpec
   | LabelLocatorSpec
   | PlaceholderLocatorSpec
+  | AltTextLocatorSpec
+  | TitleLocatorSpec
   | TextLocatorSpec
   | TestIdLocatorSpec
   | CssLocatorSpec

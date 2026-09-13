@@ -63,6 +63,10 @@ export function assessBrittleness(spec: LocatorSpec): BrittlenessResult {
       return robust();
     case "placeholder":
       return medium(["placeholders are often localized or reworded by copy changes"]);
+    case "altText":
+      return medium(["alt text is often localized or reworded by copy changes"]);
+    case "title":
+      return medium(["title attributes are often localized, reworded, or dropped entirely"]);
     case "text":
       return medium(["visible text is often localized or reworded by copy changes"]);
     case "css":

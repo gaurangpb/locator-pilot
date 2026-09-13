@@ -28,6 +28,11 @@ describe("assessBrittleness", () => {
     expect(assessBrittleness(spec).level).toBe("robust");
   });
 
+  it("treats altText and title as medium", () => {
+    expect(assessBrittleness({ strategy: "altText", text: "Logo", exact: false }).level).toBe("medium");
+    expect(assessBrittleness({ strategy: "title", text: "Close", exact: false }).level).toBe("medium");
+  });
+
   it("flags positional xpath as fragile", () => {
     const spec: LocatorSpec = { strategy: "xpath", expression: "//div[2]/span[1]" };
     expect(assessBrittleness(spec).level).toBe("fragile");

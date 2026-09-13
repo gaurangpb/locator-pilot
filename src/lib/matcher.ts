@@ -54,6 +54,20 @@ function matchByPlaceholder(doc: Document, text: string, exact: boolean): Elemen
   });
 }
 
+function matchByAltText(doc: Document, text: string, exact: boolean): Element[] {
+  return deepQueryAll(doc).filter((el) => {
+    const alt = el.getAttribute("alt");
+    return alt !== null && textMatches(alt, text, exact);
+  });
+}
+
+function matchByTitle(doc: Document, text: string, exact: boolean): Element[] {
+  return deepQueryAll(doc).filter((el) => {
+    const title = el.getAttribute("title");
+    return title !== null && textMatches(title, text, exact);
+  });
+}
+
 function matchByText(doc: Document, text: string, exact: boolean): Element[] {
   const skip = new Set(["script", "style", "svg", "noscript"]);
   const candidates = deepQueryAll(doc).filter((el) => {
@@ -78,6 +92,10 @@ export function matchLocator(doc: Document, spec: LocatorSpec): Element[] {
       return matchByLabel(doc, spec.text, spec.exact);
     case "placeholder":
       return matchByPlaceholder(doc, spec.text, spec.exact);
+    case "altText":
+      return matchByAltText(doc, spec.text, spec.exact);
+    case "title":
+      return matchByTitle(doc, spec.text, spec.exact);
     case "text":
       return matchByText(doc, spec.text, spec.exact);
     case "testId":

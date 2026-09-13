@@ -58,7 +58,12 @@ the resolved element ([ui.ts](../src/content/ui.ts),
 3. `placeholder` — weaker than label (hint text, not guaranteed unique or present),
    still user-facing.
 4. `altText` / `title` — images/icons without visible text.
-   *(not yet implemented — see `BACKLOG.md`)*
+   - **Status: implemented** — `buildSpecs` in
+     [locatorEngine.ts](../src/lib/locatorEngine.ts) adds a `getByAltText` candidate
+     for any `<img>` with a non-empty `alt`, and a `getByTitle` candidate for any
+     element with a `title` attribute and no visible text of its own — alongside,
+     not instead of, the `role` candidate (which already surfaces the same text via
+     `getAccessibleName`'s alt/title fallback).
 5. `text` — static content (headings, links, buttons without a distinguishing name).
    Prone to copy changes and to matching more than one node.
 6. `testId` — explicit test hook. Stable across markup changes, but only exists where
@@ -92,7 +97,7 @@ the resolved element ([ui.ts](../src/content/ui.ts),
 
 ## Related backlog items
 
-See `BACKLOG.md` P1 section for the tracked, actionable pieces of this design:
-interactive-element resolution (§1), CSS state-class filtering (§2.7),
-`getByAltText`/`getByTitle` strategies (§2.4), and making non-unique/promoted
-candidates visually distinct in the panel (relevant to §1.3).
+See `BACKLOG.md` for history: interactive-element resolution (§1), CSS state-class
+filtering (§2.7), `getByAltText`/`getByTitle` strategies (§2.4), and making
+non-unique candidates visually distinct in the panel (relevant to §1.3) are all now
+implemented.

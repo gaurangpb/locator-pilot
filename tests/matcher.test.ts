@@ -42,3 +42,23 @@ describe("matchLocator role strategy — visibility", () => {
     expect(matches).toHaveLength(1);
   });
 });
+
+describe("matchLocator altText/title strategies", () => {
+  it("matches an element by its alt attribute", () => {
+    const doc = setBody(`<img alt="Company logo" src="logo.png" />`);
+    const matches = matchLocator(doc, { strategy: "altText", text: "Company logo", exact: false });
+    expect(matches).toHaveLength(1);
+  });
+
+  it("matches an element by its title attribute", () => {
+    const doc = setBody(`<button title="Close dialog">×</button>`);
+    const matches = matchLocator(doc, { strategy: "title", text: "Close dialog", exact: false });
+    expect(matches).toHaveLength(1);
+  });
+
+  it("respects exact matching for altText/title", () => {
+    const doc = setBody(`<img alt="Company logo, small" src="logo.png" />`);
+    expect(matchLocator(doc, { strategy: "altText", text: "Company logo", exact: true })).toHaveLength(0);
+    expect(matchLocator(doc, { strategy: "altText", text: "Company logo, small", exact: true })).toHaveLength(1);
+  });
+});
