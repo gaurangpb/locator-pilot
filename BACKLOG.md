@@ -117,10 +117,14 @@ Status legend: `[ ]` open, `[x]` done.
 - [ ] **Perf watch-item, not yet a problem.** ~36ms per click on an 8,800-node
   synthetic page (several full-DOM sweeps: one per candidate for match-count, plus
   the CSS uniqueness-shortening loop's own per-segment queries). No caching between
-  the "generate" and "confirm uniqueness" passes. Revisit if it gets reported as
-  laggy on real 40k+ node SPAs.
-- [ ] **Land the in-flight popup → docked-panel refactor as its own commit** before
-  stacking more feature work on top of the currently-uncommitted diff.
+  the "generate" and "confirm uniqueness" passes. The new interactive-relative
+  resolution ([locatorEngine.ts](src/lib/locatorEngine.ts) `resolveTargetElement`)
+  adds a bounded ancestor/descendant walk (depth 3) on top of this, but only for
+  role-less picks — not measured, likely negligible next to the existing sweeps.
+  Revisit if it gets reported as laggy on real 40k+ node SPAs.
+- [x] **Land the in-flight popup → docked-panel refactor as its own commit.** Done
+  in [017e94a](https://github.com/gaurangpb/locator-pilot/commit/017e94a) — stale
+  by the time this list was written down; no longer an uncommitted diff.
 
 ## Done (this session)
 
