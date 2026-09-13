@@ -10,7 +10,7 @@ mkdirSync(outdir, { recursive: true });
 const buildOptions = {
   entryPoints: [
     { in: "src/content/content.ts", out: "content" },
-    { in: "src/popup/popup.ts", out: "popup/popup" },
+    { in: "src/background/background.ts", out: "background" },
     { in: "src/options/options.ts", out: "options/options" },
   ],
   bundle: true,
@@ -24,9 +24,6 @@ const buildOptions = {
 function copyStaticFiles() {
   cpSync("manifest.json", `${outdir}/manifest.json`);
   cpSync("icons", `${outdir}/icons`, { recursive: true });
-  mkdirSync(`${outdir}/popup`, { recursive: true });
-  cpSync("src/popup/popup.html", `${outdir}/popup/popup.html`);
-  cpSync("src/popup/popup.css", `${outdir}/popup/popup.css`);
   mkdirSync(`${outdir}/options`, { recursive: true });
   cpSync("src/options/options.html", `${outdir}/options/options.html`);
 }

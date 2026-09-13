@@ -1,10 +1,19 @@
-import { deepElementFromPoint } from "../lib/domQuery";
 import { generateCandidates } from "../lib/locatorEngine";
 import { matchLocator } from "../lib/matcher";
-import type { ExtensionMessage, FindResultMessage } from "../lib/messages";
+import {
+  PAGE_CHANNEL,
+  isPageEnvelope,
+  type BroadcastMessage,
+  type ContentResponse,
+  type ExtensionMessage,
+  type FindResultMessage,
+} from "../lib/messages";
+import { deepElementFromPoint } from "../lib/domQuery";
 import { parseLocator } from "../lib/parser";
+import { saveLanguage } from "../lib/settings";
+import type { CodeLanguage, LocatorCandidate } from "../lib/types";
 import overlayCss from "./overlay.css";
-import { buildBanner, buildCandidatePanel, positionNear } from "./ui";
+import { buildDockedPanel, type DockedPanelApi } from "./ui";
 
 declare global {
   interface Window {
@@ -15,6 +24,10 @@ declare global {
 if (!window.__locatorPilotLoaded) {
   window.__locatorPilotLoaded = true;
   main();
+}
+
+function broadcast(payload: BroadcastMessage["payload"]): void {
+  void chrome.runtime.sendMessage({ type: "broadcast", payload });
 }
 
 function main(): void {
@@ -31,13 +44,36 @@ function main(): void {
   const isTopFrame = window.self === window.top;
 
   let pickerActive = false;
-  let banner: HTMLElement | null = null;
   let highlightBox: HTMLElement | null = null;
   let lastHovered: Element | null = null;
-  let panel: HTMLElement | null = null;
+  let pendingTestIdAttribute = "data-testid";
+  let pendingLanguage: CodeLanguage = "csharp";
+  let panelApi: DockedPanelApi | null = null;
+  let panelVisible = false;
   let clearHighlightsTimeout: number | undefined;
+  let findWaitTimer: number | undefined;
+  let findTotal = 0;
+  let findGuessed = false;
+  let findChained = false;
+  let findError: string | undefined;
+  const trackedHighlights: { box: HTMLElement; el: Element }[] = [];
 
   document.documentElement.appendChild(host);
+  window.addEventListener("scroll", repositionTrackedHighlights, { capture: true, passive: true });
+  window.addEventListener("resize", repositionTrackedHighlights, { passive: true });
+
+  function publishToTop(message: ContentResponse): void {
+    if (isTopFrame) {
+      if (message.type === "element-picked") onElementPicked(message.candidates);
+      else onFindResult(message);
+      return;
+    }
+    window.top?.postMessage({ source: PAGE_CHANNEL, message }, "*");
+  }
+
+  function eventOnHost(e: Event): boolean {
+    return e.composedPath().includes(host);
+  }
 
   function ensureHighlightBox(): HTMLElement {
     if (!highlightBox) {
@@ -49,15 +85,34 @@ function main(): void {
     return highlightBox;
   }
 
-  function showHighlightAt(rect: DOMRect, secondary = false): HTMLElement {
-    const box = document.createElement("div");
-    box.className = secondary ? "lp-highlight lp-secondary" : "lp-highlight";
+  function positionBox(box: HTMLElement, rect: DOMRect): void {
     box.style.left = `${rect.left}px`;
     box.style.top = `${rect.top}px`;
     box.style.width = `${rect.width}px`;
     box.style.height = `${rect.height}px`;
+  }
+
+  function showHighlightOn(el: Element, secondary = false): HTMLElement {
+    const box = document.createElement("div");
+    box.className = secondary ? "lp-highlight lp-secondary" : "lp-highlight";
+    positionBox(box, el.getBoundingClientRect());
     root.appendChild(box);
+    trackedHighlights.push({ box, el });
     return box;
+  }
+
+  function untrackHighlight(box: HTMLElement): void {
+    const index = trackedHighlights.findIndex((entry) => entry.box === box);
+    if (index !== -1) trackedHighlights.splice(index, 1);
+  }
+
+  function repositionTrackedHighlights(): void {
+    for (const { box, el } of trackedHighlights) {
+      positionBox(box, el.getBoundingClientRect());
+    }
+    if (lastHovered && highlightBox && highlightBox.style.display !== "none") {
+      positionBox(highlightBox, lastHovered.getBoundingClientRect());
+    }
   }
 
   function updateHoverHighlight(el: Element | null): void {
@@ -66,15 +121,12 @@ function main(): void {
       box.style.display = "none";
       return;
     }
-    const rect = el.getBoundingClientRect();
     box.style.display = "block";
-    box.style.left = `${rect.left}px`;
-    box.style.top = `${rect.top}px`;
-    box.style.width = `${rect.width}px`;
-    box.style.height = `${rect.height}px`;
+    positionBox(box, el.getBoundingClientRect());
   }
 
   function onMouseMove(e: MouseEvent): void {
+    if (eventOnHost(e)) return;
     const target = deepElementFromPoint(document, e.clientX, e.clientY);
     if (target === host || (target && host.contains(target))) return;
     lastHovered = target;
@@ -82,74 +134,61 @@ function main(): void {
   }
 
   function onClick(e: MouseEvent): void {
+    if (eventOnHost(e)) return;
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
 
     const target = lastHovered ?? deepElementFromPoint(document, e.clientX, e.clientY);
-    stopPicker();
+    stopPicker({ keepPanelArmed: false, broadcastStop: true });
     if (!target) return;
 
-    const testIdAttribute = pendingTestIdAttribute;
-    const candidates = generateCandidates(target, { testIdAttribute });
-    showResultsPanel(target, candidates);
+    const candidates = generateCandidates(target, { testIdAttribute: pendingTestIdAttribute });
+    publishToTop({ type: "element-picked", candidates });
+    const highlight = showHighlightOn(target);
+    setTimeout(() => {
+      untrackHighlight(highlight);
+      highlight.remove();
+    }, 4000);
   }
 
   function onKeyDown(e: KeyboardEvent): void {
     if (e.key === "Escape") {
       e.preventDefault();
-      stopPicker();
+      stopPicker({ keepPanelArmed: false, broadcastStop: true });
     }
   }
-
-  let pendingTestIdAttribute = "data-testid";
 
   function startPicker(testIdAttribute: string): void {
     pendingTestIdAttribute = testIdAttribute;
     if (pickerActive) return;
     pickerActive = true;
-    closePanel();
     document.addEventListener("mousemove", onMouseMove, true);
     document.addEventListener("click", onClick, true);
     document.addEventListener("keydown", onKeyDown, true);
-    if (isTopFrame) {
-      banner = buildBanner();
-      root.appendChild(banner);
-    }
+    panelApi?.setPicking(true);
   }
 
-  function stopPicker(): void {
-    if (!pickerActive) return;
-    pickerActive = false;
-    document.removeEventListener("mousemove", onMouseMove, true);
-    document.removeEventListener("click", onClick, true);
-    document.removeEventListener("keydown", onKeyDown, true);
-    updateHoverHighlight(null);
-    if (banner) {
-      banner.remove();
-      banner = null;
+  function stopPicker(options: { keepPanelArmed: boolean; broadcastStop: boolean }): void {
+    if (pickerActive) {
+      pickerActive = false;
+      document.removeEventListener("mousemove", onMouseMove, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      updateHoverHighlight(null);
     }
-  }
-
-  function closePanel(): void {
-    if (panel) {
-      panel.remove();
-      panel = null;
+    if (!options.keepPanelArmed) panelApi?.setPicking(false);
+    if (options.broadcastStop && isTopFrame) {
+      broadcast({ type: "deactivate-picker" });
     }
-  }
-
-  function showResultsPanel(target: Element, candidates: Parameters<typeof buildCandidatePanel>[0]): void {
-    closePanel();
-    panel = buildCandidatePanel(candidates, closePanel);
-    root.appendChild(panel);
-    positionNear(panel, target.getBoundingClientRect());
-    const highlight = showHighlightAt(target.getBoundingClientRect());
-    setTimeout(() => highlight.remove(), 4000);
   }
 
   function clearFindHighlights(): void {
     for (const box of Array.from(root.querySelectorAll(".lp-highlight"))) {
-      if (box !== highlightBox) box.remove();
+      if (box !== highlightBox) {
+        untrackHighlight(box as HTMLElement);
+        box.remove();
+      }
     }
   }
 
@@ -159,37 +198,127 @@ function main(): void {
 
     let response: FindResultMessage;
     try {
-      const { spec, guessed } = parseLocator(raw, testIdAttribute);
+      const { spec, guessed, chained } = parseLocator(raw, testIdAttribute);
       const matches = matchLocator(document, spec);
       for (const match of matches) {
-        showHighlightAt(match.getBoundingClientRect(), matches.length > 1);
+        showHighlightOn(match, matches.length > 1);
       }
       if (matches.length > 0) {
         matches[0]?.scrollIntoView({ behavior: "smooth", block: "center" });
         clearHighlightsTimeout = window.setTimeout(clearFindHighlights, 5000);
       }
-      response = { type: "find-result", matchCount: matches.length, guessed };
+      response = { type: "find-result", matchCount: matches.length, guessed, chained };
     } catch (err) {
       response = {
         type: "find-result",
         matchCount: 0,
         guessed: false,
+        chained: false,
         error: err instanceof Error ? err.message : String(err),
       };
     }
 
-    try {
-      chrome.runtime.sendMessage(response);
-    } catch {
-      // popup may already be closed — the on-page highlight is the primary feedback
-    }
+    publishToTop(response);
   }
 
+  function showPanel(language: CodeLanguage): void {
+    if (!isTopFrame) return;
+    pendingLanguage = language;
+    if (!panelApi) {
+      panelApi = buildDockedPanel(language, {
+        onPick: () => {
+          broadcast({ type: "activate-picker", testIdAttribute: pendingTestIdAttribute });
+        },
+        onCancelPick: () => {
+          stopPicker({ keepPanelArmed: false, broadcastStop: true });
+        },
+        onFind: (raw) => {
+          const trimmed = raw.trim();
+          if (!trimmed) {
+            panelApi?.setFindResult("Paste a locator first.", "error");
+            return;
+          }
+          findTotal = 0;
+          findGuessed = false;
+          findChained = false;
+          findError = undefined;
+          panelApi?.setFindResult("Searching…", "");
+          if (findWaitTimer !== undefined) window.clearTimeout(findWaitTimer);
+          findWaitTimer = window.setTimeout(() => {
+            findWaitTimer = undefined;
+            if (findError) {
+              panelApi?.setFindResult(findError, "error");
+              return;
+            }
+            const guessNote = findGuessed ? " (interpreted as a raw selector)" : "";
+            const chainNote = findChained
+              ? " — chained calls like .filter()/.nth()/.first() were ignored; showing all matches for the base locator"
+              : "";
+            const note = `${guessNote}${chainNote}`;
+            if (findTotal === 0) panelApi?.setFindResult(`No matches found on this page${note}.`, "error");
+            else if (findTotal === 1 && !findChained)
+              panelApi?.setFindResult(`Found 1 match — highlighted on the page${note}.`, "ok");
+            else panelApi?.setFindResult(`Found ${findTotal} matches — highlighted on the page${note}.`, "warn");
+          }, 400);
+          broadcast({ type: "find-locator", raw: trimmed, testIdAttribute: pendingTestIdAttribute });
+        },
+        onClose: () => hidePanel(),
+        onLanguageChange: (next) => {
+          pendingLanguage = next;
+          void saveLanguage(next);
+        },
+        onOptions: () => {
+          void chrome.runtime.sendMessage({ type: "open-options" });
+        },
+      });
+      root.appendChild(panelApi.root);
+    }
+    panelApi.setLanguage(language);
+    panelApi.root.style.display = "flex";
+    panelVisible = true;
+  }
+
+  function hidePanel(): void {
+    stopPicker({ keepPanelArmed: false, broadcastStop: true });
+    if (panelApi) panelApi.root.style.display = "none";
+    panelVisible = false;
+  }
+
+  function onElementPicked(candidates: LocatorCandidate[]): void {
+    if (!isTopFrame) return;
+    stopPicker({ keepPanelArmed: false, broadcastStop: true });
+    showPanel(pendingLanguage);
+    panelApi?.setCandidates(candidates);
+  }
+
+  function onFindResult(message: FindResultMessage): void {
+    if (!isTopFrame || findWaitTimer === undefined) return;
+    if (message.error) {
+      findError = message.error;
+      return;
+    }
+    findTotal += message.matchCount;
+    findGuessed = findGuessed || message.guessed;
+    findChained = findChained || message.chained;
+  }
+
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (!isTopFrame || !isPageEnvelope(event.data)) return;
+    if (event.data.message.type === "element-picked") onElementPicked(event.data.message.candidates);
+    else onFindResult(event.data.message);
+  });
+
   chrome.runtime.onMessage.addListener((message: ExtensionMessage) => {
-    if (message.type === "activate-picker") {
+    if (message.type === "toggle-panel") {
+      pendingTestIdAttribute = message.testIdAttribute;
+      pendingLanguage = message.language;
+      if (!isTopFrame) return;
+      if (panelVisible) hidePanel();
+      else showPanel(message.language);
+    } else if (message.type === "activate-picker") {
       startPicker(message.testIdAttribute);
     } else if (message.type === "deactivate-picker") {
-      stopPicker();
+      stopPicker({ keepPanelArmed: false, broadcastStop: false });
     } else if (message.type === "find-locator") {
       handleFindLocator(message.raw, message.testIdAttribute);
     }

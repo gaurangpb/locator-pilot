@@ -1,4 +1,4 @@
-import type { BrittlenessLevel, LocatorCandidate } from "../lib/types";
+import type { BrittlenessLevel, CodeLanguage, LocatorCandidate } from "../lib/types";
 
 interface ElOptions {
   className?: string;
@@ -69,14 +69,11 @@ function copyButton(getText: () => string): HTMLButtonElement {
   return button;
 }
 
-function codeRow(label: string, code: string): HTMLElement {
-  return el("div", { className: "lp-code-row" }, [
-    el("code", { className: "lp-code", text: code, attrs: { "aria-label": label } }),
-    copyButton(() => code),
-  ]);
+function codeFor(candidate: LocatorCandidate, language: CodeLanguage): string {
+  return language === "typescript" ? candidate.typescript : candidate.csharp;
 }
 
-function candidateCard(candidate: LocatorCandidate): HTMLElement {
+function candidateCard(candidate: LocatorCandidate, language: CodeLanguage): HTMLElement {
   const meta = el("div", { className: "lp-candidate-meta" }, [
     el("span", { className: "lp-badge lp-badge-strategy", text: strategyLabel(candidate.spec.strategy) }),
     el("span", { className: badgeClassForBrittleness(candidate.brittleness.level), text: candidate.brittleness.level }),
@@ -85,8 +82,14 @@ function candidateCard(candidate: LocatorCandidate): HTMLElement {
 
   const card = el("div", { className: "lp-candidate" }, [
     meta,
-    codeRow("C# locator", candidate.csharp),
-    codeRow("TypeScript locator", candidate.typescript),
+    el("div", { className: "lp-code-row" }, [
+      el("code", {
+        className: "lp-code",
+        text: codeFor(candidate, language),
+        attrs: { "aria-label": language === "typescript" ? "TypeScript locator" : "C# locator" },
+      }),
+      copyButton(() => codeFor(candidate, language)),
+    ]),
   ]);
 
   if (candidate.brittleness.reasons.length > 0) {
@@ -100,42 +103,164 @@ function candidateCard(candidate: LocatorCandidate): HTMLElement {
   return card;
 }
 
-export function buildCandidatePanel(candidates: LocatorCandidate[], onClose: () => void): HTMLElement {
-  const closeBtn = el("button", { className: "lp-close-btn", text: "✕", attrs: { "aria-label": "Close" } });
-  closeBtn.addEventListener("click", onClose);
+export type FindKind = "ok" | "warn" | "error" | "";
 
-  const header = el("div", { className: "lp-panel-header" }, [
-    el("span", { className: "lp-panel-title", text: "Locator Pilot" }),
-    closeBtn,
-  ]);
+export interface DockedPanelHandlers {
+  onPick: () => void;
+  onCancelPick: () => void;
+  onFind: (raw: string) => void;
+  onClose: () => void;
+  onLanguageChange: (language: CodeLanguage) => void;
+  onOptions: () => void;
+}
 
-  const panel = el("div", { className: "lp-panel" }, [header]);
+export interface DockedPanelApi {
+  root: HTMLElement;
+  setPicking(active: boolean): void;
+  setLanguage(language: CodeLanguage): void;
+  setCandidates(candidates: LocatorCandidate[] | null): void;
+  setFindResult(text: string, kind: FindKind): void;
+}
 
-  if (candidates.length === 0) {
-    panel.appendChild(el("div", { text: "No locator could be generated for this element." }));
-  } else {
-    for (const candidate of candidates) panel.appendChild(candidateCard(candidate));
+export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHandlers): DockedPanelApi {
+  let currentLanguage = language;
+  let currentCandidates: LocatorCandidate[] | null = null;
+  let picking = false;
+
+  const pickBtn = el("button", { className: "lp-primary-btn", text: "Pick an element", attrs: { type: "button" } });
+  const pickHint = el("p", {
+    className: "lp-hint",
+    text: "Hover the page and click an element. The panel stays open.",
+  });
+  const findInput = el("textarea", {
+    className: "lp-textarea",
+    attrs: {
+      id: "lp-paste-input",
+      rows: "3",
+      placeholder: "e.g. page.getByRole('button', { name: 'Submit' })",
+    },
+  });
+  const findBtn = el("button", { className: "lp-primary-btn", text: "Find on page", attrs: { type: "button" } });
+  const findResult = el("p", { className: "lp-find-result", attrs: { role: "status" } });
+  const results = el("div", { className: "lp-results" });
+  const csharpBtn = el("button", {
+    className: "lp-lang-btn",
+    text: "C#",
+    attrs: { type: "button", "aria-pressed": language === "csharp" ? "true" : "false" },
+  });
+  const tsBtn = el("button", {
+    className: "lp-lang-btn",
+    text: "TS",
+    attrs: { type: "button", "aria-pressed": language === "typescript" ? "true" : "false" },
+  });
+
+  function syncLanguageButtons(): void {
+    csharpBtn.setAttribute("aria-pressed", currentLanguage === "csharp" ? "true" : "false");
+    tsBtn.setAttribute("aria-pressed", currentLanguage === "typescript" ? "true" : "false");
   }
 
-  return panel;
-}
+  function renderResults(): void {
+    results.replaceChildren();
+    if (!currentCandidates) {
+      results.appendChild(
+        el("p", { className: "lp-empty", text: "Pick an element to see ranked locators here." }),
+      );
+      return;
+    }
+    if (currentCandidates.length === 0) {
+      results.appendChild(el("p", { className: "lp-empty", text: "No locator could be generated for this element." }));
+      return;
+    }
+    for (const candidate of currentCandidates) {
+      results.appendChild(candidateCard(candidate, currentLanguage));
+    }
+  }
 
-export function positionNear(panel: HTMLElement, rect: DOMRect): void {
-  const margin = 12;
-  const width = 380;
-  let left = rect.right + margin;
-  if (left + width > window.innerWidth) left = Math.max(margin, rect.left - width - margin);
-  let top = rect.top;
-  if (top + 200 > window.innerHeight) top = Math.max(margin, window.innerHeight - 200 - margin);
+  function setPicking(active: boolean): void {
+    picking = active;
+    pickBtn.textContent = active ? "Picking… Esc to cancel" : "Pick an element";
+    pickBtn.classList.toggle("lp-primary-btn-armed", active);
+    pickHint.textContent = active
+      ? "Click any element on the page. Esc cancels without closing this panel."
+      : "Hover the page and click an element. The panel stays open.";
+  }
 
-  panel.style.left = `${Math.max(margin, left)}px`;
-  panel.style.top = `${Math.max(margin, top)}px`;
-}
+  pickBtn.addEventListener("click", () => {
+    if (picking) handlers.onCancelPick();
+    else handlers.onPick();
+  });
 
-export function buildBanner(): HTMLElement {
-  return el("div", { className: "lp-banner" }, [
-    el("span", { text: "Click an element to get its locator" }),
-    el("kbd", { text: "Esc" }),
-    el("span", { text: "to cancel" }),
+  findBtn.addEventListener("click", () => {
+    handlers.onFind(findInput.value);
+  });
+
+  csharpBtn.addEventListener("click", () => {
+    if (currentLanguage === "csharp") return;
+    currentLanguage = "csharp";
+    syncLanguageButtons();
+    renderResults();
+    handlers.onLanguageChange(currentLanguage);
+  });
+
+  tsBtn.addEventListener("click", () => {
+    if (currentLanguage === "typescript") return;
+    currentLanguage = "typescript";
+    syncLanguageButtons();
+    renderResults();
+    handlers.onLanguageChange(currentLanguage);
+  });
+
+  const closeBtn = el("button", { className: "lp-close-btn", text: "✕", attrs: { type: "button", "aria-label": "Close" } });
+  closeBtn.addEventListener("click", handlers.onClose);
+
+  const optionsBtn = el("button", { className: "lp-link-btn", text: "Options", attrs: { type: "button" } });
+  optionsBtn.addEventListener("click", handlers.onOptions);
+
+  const root = el("aside", { className: "lp-dock", attrs: { role: "dialog", "aria-label": "Locator Pilot" } }, [
+    el("header", { className: "lp-dock-header" }, [
+      el("div", { className: "lp-dock-heading" }, [
+        el("span", { className: "lp-dock-title", text: "Locator Pilot" }),
+        optionsBtn,
+      ]),
+      el("div", { className: "lp-dock-header-actions" }, [
+        el("div", { className: "lp-lang-toggle", attrs: { role: "group", "aria-label": "Locator language" } }, [
+          csharpBtn,
+          tsBtn,
+        ]),
+        closeBtn,
+      ]),
+    ]),
+    el("section", { className: "lp-section" }, [pickBtn, pickHint]),
+    el("section", { className: "lp-section" }, [
+      el("label", { className: "lp-label", text: "Paste a locator to find it on the page", attrs: { for: "lp-paste-input" } }),
+      findInput,
+      findBtn,
+      findResult,
+    ]),
+    el("section", { className: "lp-section lp-section-results" }, [
+      el("h2", { className: "lp-results-heading", text: "Results" }),
+      results,
+    ]),
   ]);
+
+  renderResults();
+  syncLanguageButtons();
+
+  return {
+    root,
+    setPicking,
+    setLanguage(next) {
+      currentLanguage = next;
+      syncLanguageButtons();
+      renderResults();
+    },
+    setCandidates(candidates) {
+      currentCandidates = candidates;
+      renderResults();
+    },
+    setFindResult(text, kind) {
+      findResult.textContent = text;
+      findResult.className = `lp-find-result${kind ? ` lp-${kind}` : ""}`;
+    },
+  };
 }

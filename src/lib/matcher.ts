@@ -1,4 +1,4 @@
-import { getAccessibleName, getImplicitRole } from "./accessibility";
+import { getAccessibleName, getImplicitRole, isExposedToAccessibilityTree } from "./accessibility";
 import { cssEscape } from "./cssEscape";
 import { deepEvaluateXPath, deepQueryAll, deepQuerySelectorAll } from "./domQuery";
 import type { LocatorSpec } from "./types";
@@ -28,6 +28,9 @@ function resolveLabelTarget(label: Element, doc: Document): Element | null {
 function matchByRole(doc: Document, role: string, name: string | undefined, exact: boolean): Element[] {
   return deepQueryAll(doc).filter((el) => {
     if (getImplicitRole(el) !== role) return false;
+    // Mirrors Playwright's default getByRole() behavior: hidden elements
+    // (display:none, visibility:hidden, aria-hidden) aren't in the a11y tree.
+    if (!isExposedToAccessibilityTree(el)) return false;
     if (!name) return true;
     return textMatches(getAccessibleName(el, doc), name, exact);
   });

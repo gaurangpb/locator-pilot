@@ -52,4 +52,42 @@ describe("parseLocator", () => {
   it("throws on empty input", () => {
     expect(() => parseLocator("   ", "data-testid")).toThrow();
   });
+
+  it("flags a chained .filter() call as ignored", () => {
+    const { spec, chained } = parseLocator(
+      `page.locator('.card').filter({ hasText: 'foo' })`,
+      "data-testid",
+    );
+    expect(chained).toBe(true);
+    expect(spec).toMatchObject({ strategy: "css", selector: ".card" });
+  });
+
+  it("flags a chained .getByRole() call after getByTestId as ignored", () => {
+    const { chained } = parseLocator(`page.getByTestId('foo').getByRole('button')`, "data-testid");
+    expect(chained).toBe(true);
+  });
+
+  it("flags .nth()/.first() chains as ignored", () => {
+    expect(parseLocator(`page.getByRole('button', { name: 'Submit' }).nth(0)`, "data-testid").chained).toBe(true);
+    expect(parseLocator(`page.getByRole('button', { name: 'Submit' }).first()`, "data-testid").chained).toBe(true);
+  });
+
+  it("does not flag chaining for a plain, unchained call", () => {
+    const { chained } = parseLocator(`page.getByRole('button', { name: 'Submit' })`, "data-testid");
+    expect(chained).toBe(false);
+  });
+
+  it("does not flag chaining when embedded in a larger statement", () => {
+    const { chained } = parseLocator(
+      `await expect(page.getByRole('button', { name: 'Submit' })).toBeVisible();`,
+      "data-testid",
+    );
+    expect(chained).toBe(false);
+  });
+
+  it("never flags chaining for a guessed raw selector", () => {
+    const { chained, guessed } = parseLocator(`.btn-primary > span`, "data-testid");
+    expect(guessed).toBe(true);
+    expect(chained).toBe(false);
+  });
 });

@@ -46,6 +46,49 @@ const IMPLICIT_ROLE_TAGS: Record<string, string> = {
   progress: "progressbar",
 };
 
+function parentOrHost(node: Element): Element | null {
+  if (node.parentElement) return node.parentElement;
+  const root = node.getRootNode();
+  return root instanceof ShadowRoot ? root.host : null;
+}
+
+/** CSS-hidden check (display:none / visibility:hidden), ancestor- and shadow-boundary-aware. */
+function isCssVisible(el: Element): boolean {
+  // checkVisibility() is the accurate, native way to do this (accounts for a
+  // visibility:visible descendant overriding a hidden ancestor, etc.) but isn't
+  // implemented in jsdom, so fall back to a simpler ancestor walk there.
+  if (typeof (el as { checkVisibility?: unknown }).checkVisibility === "function") {
+    return (el as HTMLElement).checkVisibility({ checkVisibilityCSS: true });
+  }
+  const view = el.ownerDocument.defaultView;
+  if (!view) return true;
+  let node: Element | null = el;
+  while (node) {
+    const style = view.getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    node = parentOrHost(node);
+  }
+  return true;
+}
+
+function isAriaHidden(el: Element): boolean {
+  let node: Element | null = el;
+  while (node) {
+    if (node.getAttribute("aria-hidden") === "true") return true;
+    node = parentOrHost(node);
+  }
+  return false;
+}
+
+/**
+ * Whether the element would be exposed to the accessibility tree — i.e. whether
+ * Playwright's getByRole() (which excludes hidden elements by default) would ever
+ * consider it a candidate.
+ */
+export function isExposedToAccessibilityTree(el: Element): boolean {
+  return isCssVisible(el) && !isAriaHidden(el);
+}
+
 export function getImplicitRole(el: Element): string | null {
   const explicit = el.getAttribute("role");
   if (explicit) return explicit.trim().split(/\s+/)[0] ?? null;

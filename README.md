@@ -6,8 +6,9 @@ locator back in to find and highlight it on the current page.
 
 ## Features (v1)
 
-- **Element picker** — click the toolbar icon, hover the page, click an element. Works
-  inside open shadow roots and same-origin iframes.
+- **Element picker** — click the toolbar icon to open a docked right-hand panel, then
+  pick an element. The panel stays open. Works inside open shadow roots and same-origin
+  iframes. A C# / TypeScript toggle remembers your last choice.
 - **Ranked locator candidates** — up to 3 per element, following Playwright's own
   priority: role/name → label → placeholder → text → test-id → CSS → XPath.
 - **Live uniqueness check** — every candidate shows how many elements on the page it
@@ -28,10 +29,10 @@ src/
   lib/            Pure, unit-tested logic: role/name computation, locator generation,
                   brittleness scoring, the paste-a-locator parser, C#/TS codegen,
                   and DOM matching (shadow-DOM aware).
-  content/        Content script: the picker overlay, hover/click handling, and the
-                  paste-and-find highlighter. Renders its UI inside a shadow root so
-                  host-page CSS can't interfere with it.
-  popup/          Toolbar popup: "Pick an element" and "Paste a locator" UI.
+  content/        Content script: the docked right-hand panel, picker overlay,
+                  hover/click handling, and the paste-and-find highlighter. Renders
+                  its UI inside a shadow root so host-page CSS can't interfere with it.
+  background/     Service worker: toolbar click injects the panel and relays messages.
   options/        Options page for the test-id attribute setting.
 tests/            Vitest + jsdom unit tests for src/lib.
 ```

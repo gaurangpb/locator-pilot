@@ -77,4 +77,7 @@ export interface EngineOptions {
   testIdAttribute: string;
 }
 
+export type CodeLanguage = "csharp" | "typescript";
+
 export const DEFAULT_TEST_ID_ATTRIBUTE = "data-testid";
+export const DEFAULT_LANGUAGE: CodeLanguage = "csharp";

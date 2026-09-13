@@ -22,6 +22,6 @@ saved.
 - `storage` — saves your test-id attribute preference.
 
 Locator Pilot requests no host permissions and does not run on every page by default —
-it only activates when you open its popup.
+it only activates when you click its toolbar icon.
 
 Questions or concerns: open an issue on the project's GitHub repository.

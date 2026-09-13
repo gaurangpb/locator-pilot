@@ -7,7 +7,7 @@
   inset: 0;
   z-index: 2147483647;
   pointer-events: none;
-  font: 13px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 13px/1.45 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
   color: #e8ecf3;
 }
 
@@ -25,53 +25,87 @@
   background: rgba(124, 140, 255, 0.14);
 }
 
-.lp-banner {
+.lp-dock {
   position: fixed;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #141a2e;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.lp-banner kbd {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  padding: 1px 6px;
-  font: inherit;
-}
-
-.lp-panel {
-  position: fixed;
-  width: 380px;
-  max-height: 70vh;
-  overflow-y: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 100vw);
   background: #141a2e;
   color: #e8ecf3;
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
-  padding: 12px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.35);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.lp-panel-header {
+.lp-dock-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.lp-panel-title {
-  font-weight: 600;
-  font-size: 13px;
+.lp-dock-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lp-dock-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.lp-dock-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lp-link-btn {
+  background: none;
+  border: none;
+  color: #9aa3b8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+}
+
+.lp-link-btn:hover {
+  color: #fff;
+}
+
+.lp-lang-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.lp-lang-btn {
+  background: transparent;
+  border: none;
+  color: #9aa3b8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 4px 8px;
+}
+
+.lp-lang-btn[aria-pressed="true"] {
+  background: #2dd4af;
+  color: #04231d;
 }
 
 .lp-close-btn {
@@ -88,6 +122,104 @@
 .lp-close-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.lp-section {
+  padding: 12px 14px 0;
+}
+
+.lp-section-results {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 14px;
+}
+
+.lp-primary-btn {
+  width: 100%;
+  background: #2dd4af;
+  color: #04231d;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lp-primary-btn:hover {
+  background: #35e0ba;
+}
+
+.lp-primary-btn-armed {
+  background: transparent;
+  color: #6fe3c9;
+  border: 1px solid #2dd4af;
+}
+
+.lp-primary-btn-armed:hover {
+  background: rgba(45, 212, 175, 0.12);
+}
+
+.lp-hint,
+.lp-empty {
+  margin: 6px 0 0;
+  color: #9aa3b8;
+  font-size: 12px;
+}
+
+.lp-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #cfd5e2;
+  font-size: 12px;
+}
+
+.lp-textarea {
+  width: 100%;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: #e8ecf3;
+  font: 12px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.lp-find-result {
+  margin: 8px 0 0;
+  font-size: 12px;
+  min-height: 16px;
+}
+
+.lp-find-result.lp-ok {
+  color: #6fe3c9;
+}
+
+.lp-find-result.lp-warn {
+  color: #facc15;
+}
+
+.lp-find-result.lp-error {
+  color: #f87171;
+}
+
+.lp-results-heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa3b8;
+}
+
+.lp-results {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .lp-candidate {

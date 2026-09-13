@@ -4,6 +4,13 @@ export interface ParseResult {
   spec: LocatorSpec;
   /** True when we only recovered a raw selector string, without knowing the intended strategy for sure. */
   guessed: boolean;
+  /**
+   * True when the input had additional chained calls after the parsed locator
+   * (e.g. `.filter(...)`, `.first()`, `.nth(0)`, `.getByRole(...)`) that we
+   * ignored — the returned spec only reflects the base locator, so it may match
+   * more (or different) elements than the original expression did.
+   */
+  chained: boolean;
 }
 
 function unquote(raw: string): string {
@@ -46,6 +53,39 @@ function extractBalancedParens(text: string, fromIndex: number): string | null {
     }
   }
   return null;
+}
+
+/** Finds the index of the paren that closes the one at `openParenIndex`, respecting nesting and quotes. */
+function findMatchingParenEnd(text: string, openParenIndex: number): number | null {
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let i = openParenIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\") {
+        i++;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+    } else if (ch === "(") {
+      depth++;
+    } else if (ch === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return null;
+}
+
+/** True when the text right after a parsed call is another chained call, e.g. `.filter(...)`, `.first()`, `.Nth(0)`. */
+function hasChainedCall(text: string, afterIndex: number): boolean {
+  const rest = text.slice(afterIndex).trimStart();
+  return /^\.\s*[A-Za-z_]\w*\s*\(/.test(rest);
 }
 
 /** Splits top-level comma-separated arguments, respecting nested parens/braces/brackets and quotes. */
@@ -149,41 +189,47 @@ export function parseLocator(input: string, testIdAttribute: string): ParseResul
     const openParenIndex = methodMatch.index + methodMatch[0].length - 1;
     const argsText = extractBalancedParens(text, openParenIndex);
     const args = argsText ?? "";
+    const parenEndIndex = findMatchingParenEnd(text, openParenIndex);
+    const chained = parenEndIndex !== null && hasChainedCall(text, parenEndIndex + 1);
 
     if (method === "getbyrole") {
       const role = firstPositionalRole(args);
       if (role) {
         const name = findOptionValue(args, ["name", "Name"]);
         const exact = findExactFlag(args);
-        return { guessed: false, spec: { strategy: "role", role, name, exact } };
+        return { guessed: false, chained, spec: { strategy: "role", role, name, exact } };
       }
     } else if (method === "getbylabel") {
       const value = firstPositionalArg(args);
       if (value !== null) {
-        return { guessed: false, spec: { strategy: "label", text: value, exact: findExactFlag(args) } };
+        return { guessed: false, chained, spec: { strategy: "label", text: value, exact: findExactFlag(args) } };
       }
     } else if (method === "getbyplaceholder") {
       const value = firstPositionalArg(args);
       if (value !== null) {
-        return { guessed: false, spec: { strategy: "placeholder", text: value, exact: findExactFlag(args) } };
+        return {
+          guessed: false,
+          chained,
+          spec: { strategy: "placeholder", text: value, exact: findExactFlag(args) },
+        };
       }
     } else if (method === "getbytext") {
       const value = firstPositionalArg(args);
       if (value !== null) {
-        return { guessed: false, spec: { strategy: "text", text: value, exact: findExactFlag(args) } };
+        return { guessed: false, chained, spec: { strategy: "text", text: value, exact: findExactFlag(args) } };
       }
     } else if (method === "getbytestid") {
       const value = firstPositionalArg(args);
       if (value !== null) {
-        return { guessed: false, spec: { strategy: "testId", attribute: testIdAttribute, value } };
+        return { guessed: false, chained, spec: { strategy: "testId", attribute: testIdAttribute, value } };
       }
     } else if (method === "locator") {
       const value = firstPositionalArg(args);
       if (value !== null) {
-        return { guessed: false, spec: parseSelectorString(value) };
+        return { guessed: false, chained, spec: parseSelectorString(value) };
       }
     }
   }
 
-  return { guessed: true, spec: parseSelectorString(text) };
+  return { guessed: true, chained: false, spec: parseSelectorString(text) };
 }
