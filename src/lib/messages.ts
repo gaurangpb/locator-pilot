@@ -23,13 +23,28 @@ export interface FindLocatorMessage {
   testIdAttribute: string;
 }
 
+export interface ClearLiveRecheckMessage {
+  type: "clear-live-recheck";
+}
+
+export interface RecomputeExactMessage {
+  type: "recompute-exact";
+  index: number;
+  exact: boolean;
+}
+
 export interface OpenOptionsMessage {
   type: "open-options";
 }
 
 export interface BroadcastMessage {
   type: "broadcast";
-  payload: ActivatePickerMessage | DeactivatePickerMessage | FindLocatorMessage;
+  payload:
+    | ActivatePickerMessage
+    | DeactivatePickerMessage
+    | FindLocatorMessage
+    | ClearLiveRecheckMessage
+    | RecomputeExactMessage;
 }
 
 export type ExtensionMessage =
@@ -37,6 +52,8 @@ export type ExtensionMessage =
   | ActivatePickerMessage
   | DeactivatePickerMessage
   | FindLocatorMessage
+  | ClearLiveRecheckMessage
+  | RecomputeExactMessage
   | OpenOptionsMessage
   | BroadcastMessage;
 
@@ -54,7 +71,12 @@ export interface FindResultMessage {
   error?: string;
 }
 
-export type ContentResponse = ElementPickedMessage | FindResultMessage;
+export interface CandidatesUpdatedMessage {
+  type: "candidates-updated";
+  candidates: LocatorCandidate[];
+}
+
+export type ContentResponse = ElementPickedMessage | FindResultMessage | CandidatesUpdatedMessage;
 
 export interface PageEnvelope {
   source: typeof PAGE_CHANNEL;

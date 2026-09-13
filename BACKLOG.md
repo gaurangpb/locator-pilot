@@ -46,13 +46,21 @@ Status legend: `[ ]` open, `[x]` done.
   `isExposedToAccessibilityTree` check the P0 role fix uses, and surfaced as an
   orange "Hidden" badge on any candidate card in [ui.ts](src/content/ui.ts)
   regardless of strategy.
-- [ ] **No live re-check of match counts.** Counts are computed once at pick/find
+- [x] **No live re-check of match counts.** Counts are computed once at pick/find
   time; on an SPA that re-renders, a "1 match, robust" badge can go stale
-  immediately. Consider a refresh action or a `MutationObserver`-driven re-check
-  while the panel is open.
-- [ ] **No `exact` toggle in the panel.** Every generated spec defaults to
+  immediately. Added a `MutationObserver`-driven re-check (debounced 300ms) that
+  runs in whichever frame owns the current pick, recomputing candidates via the
+  new `refreshCandidates` helper in [locatorEngine.ts](src/lib/locatorEngine.ts)
+  and pushing updates to the panel through a `candidates-updated` message in
+  [content.ts](src/content/content.ts)/[messages.ts](src/lib/messages.ts).
+  Scoped to the picked-candidates panel (not the one-off "Find on page" text).
+- [x] **No `exact` toggle in the panel.** Every generated spec defaults to
   `exact: false`; flipping a candidate to exact match currently requires editing
-  the copied code by hand.
+  the copied code by hand. Added an "Exact match" checkbox per applicable
+  candidate card in [ui.ts](src/content/ui.ts), wired through a new
+  `recompute-exact` broadcast message to the owning frame, which recomputes the
+  candidate via the new `withExact` helper in
+  [locatorEngine.ts](src/lib/locatorEngine.ts).
 - [ ] **Non-unique candidates aren't visually distinct.** `isUnique` is computed but
   unused in the UI — a 2-match candidate still gets a green "robust" badge next to
   muted gray "2 matches" text that's easy to miss. Should affect badge

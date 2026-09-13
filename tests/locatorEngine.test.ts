@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateCandidates } from "../src/lib/locatorEngine";
+import { generateCandidates, refreshCandidates, withExact } from "../src/lib/locatorEngine";
 import { DEFAULT_TEST_ID_ATTRIBUTE } from "../src/lib/types";
 
 function setBody(html: string): Document {
@@ -121,5 +121,67 @@ describe("generateCandidates", () => {
     const testIdCandidate = candidates.find((c) => c.spec.strategy === "testId");
     expect(testIdCandidate?.matchCount).toBe(1);
     expect(testIdCandidate?.hasHiddenMatch).toBe(false);
+  });
+});
+
+describe("refreshCandidates", () => {
+  it("picks up a match count that changed after the candidates were generated", () => {
+    const doc = setBody(`<button class="btn">Save</button>`);
+    const el = doc.querySelector("button")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+    const roleCandidate = candidates.find((c) => c.spec.strategy === "role")!;
+    expect(roleCandidate.matchCount).toBe(1);
+
+    doc.body.insertAdjacentHTML("beforeend", `<button class="btn">Save</button>`);
+    const refreshed = refreshCandidates(candidates, doc);
+    const refreshedRole = refreshed.find((c) => c.spec.strategy === "role")!;
+    expect(refreshedRole.matchCount).toBe(2);
+    expect(refreshedRole.isUnique).toBe(false);
+  });
+
+  it("picks up an element becoming hidden after the candidates were generated", () => {
+    const doc = setBody(`<button id="submit-btn">Submit</button>`);
+    const el = doc.getElementById("submit-btn")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+    expect(candidates.every((c) => c.hasHiddenMatch === false)).toBe(true);
+
+    el.style.display = "none";
+    const refreshed = refreshCandidates(candidates, doc);
+    expect(refreshed.some((c) => c.hasHiddenMatch)).toBe(true);
+  });
+});
+
+describe("withExact", () => {
+  it("flips exact on a role candidate and recomputes its match count", () => {
+    const doc = setBody(`
+      <button id="save-btn">Save</button>
+      <button id="save-changes-btn">Save changes</button>
+    `);
+    const el = doc.getElementById("save-btn")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+    const roleIndex = candidates.findIndex((c) => c.spec.strategy === "role");
+    // Default substring matching also picks up "Save changes".
+    expect(candidates[roleIndex]!.matchCount).toBe(2);
+    expect(candidates[roleIndex]!.isUnique).toBe(false);
+
+    const withExactOn = withExact(candidates, roleIndex, true, doc);
+    const roleCandidate = withExactOn[roleIndex]!;
+    expect(roleCandidate.spec).toMatchObject({ exact: true });
+    expect(roleCandidate.matchCount).toBe(1);
+    expect(roleCandidate.isUnique).toBe(true);
+    expect(roleCandidate.csharp).toContain("Exact = true");
+    expect(roleCandidate.typescript).toContain("exact: true");
+    // Other candidates in the array are left untouched.
+    expect(withExactOn.filter((_, i) => i !== roleIndex)).toEqual(candidates.filter((_, i) => i !== roleIndex));
+  });
+
+  it("is a no-op for a strategy without an exact field", () => {
+    const doc = setBody(`<div data-testid="user-menu">Menu</div>`);
+    const el = doc.querySelector("[data-testid]")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+    const testIdIndex = candidates.findIndex((c) => c.spec.strategy === "testId");
+
+    const result = withExact(candidates, testIdIndex, true, doc);
+    expect(result).toBe(candidates);
   });
 });

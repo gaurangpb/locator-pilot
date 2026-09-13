@@ -166,6 +166,25 @@ function specKey(spec: LocatorSpec): string {
   return JSON.stringify(spec);
 }
 
+/** Builds a fresh candidate from a spec — the single place match-derived fields are computed, so a live re-check or an exact-toggle can recompute a candidate without duplicating this logic (and risking it drifting out of sync, as happened with the hasHiddenMatch check). */
+function buildCandidate(spec: LocatorSpec, doc: Document): LocatorCandidate {
+  const matches = matchLocator(doc, spec);
+  return {
+    spec,
+    matchCount: matches.length,
+    isUnique: matches.length === 1,
+    // CSS-hidden only (display:none/visibility:hidden) — this is what makes an
+    // element non-actionable for Playwright regardless of locator strategy.
+    // aria-hidden alone does NOT belong here: it's a common, intentional
+    // pattern on visible decorative icons, and only affects accessibility-tree
+    // based strategies (role/label), which already filter it out themselves.
+    hasHiddenMatch: matches.some((match) => !isCssVisible(match)),
+    brittleness: assessBrittleness(spec),
+    csharp: toCSharp(spec),
+    typescript: toTypeScript(spec),
+  };
+}
+
 export function generateCandidates(
   el: Element,
   options: EngineOptions,
@@ -180,24 +199,30 @@ export function generateCandidates(
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const matches = matchLocator(doc, spec);
-    candidates.push({
-      spec,
-      matchCount: matches.length,
-      isUnique: matches.length === 1,
-      // CSS-hidden only (display:none/visibility:hidden) — this is what makes an
-      // element non-actionable for Playwright regardless of locator strategy.
-      // aria-hidden alone does NOT belong here: it's a common, intentional
-      // pattern on visible decorative icons, and only affects accessibility-tree
-      // based strategies (role/label), which already filter it out themselves.
-      hasHiddenMatch: matches.some((match) => !isCssVisible(match)),
-      brittleness: assessBrittleness(spec),
-      csharp: toCSharp(spec),
-      typescript: toTypeScript(spec),
-    });
+    candidates.push(buildCandidate(spec, doc));
 
     if (candidates.length >= MAX_CANDIDATES) break;
   }
 
   return candidates;
+}
+
+/** Recomputes matchCount/isUnique/hasHiddenMatch (and codegen/brittleness, which are cheap) for a set of previously-generated candidates against the current DOM state — used to keep the panel from going stale on an SPA that re-renders after a pick. */
+export function refreshCandidates(candidates: LocatorCandidate[], doc: Document): LocatorCandidate[] {
+  return candidates.map((candidate) => buildCandidate(candidate.spec, doc));
+}
+
+/** Flips the `exact` flag on the candidate at `index` (a no-op if that strategy has no `exact` field) and recomputes it against the current DOM. */
+export function withExact(
+  candidates: LocatorCandidate[],
+  index: number,
+  exact: boolean,
+  doc: Document,
+): LocatorCandidate[] {
+  const target = candidates[index];
+  if (!target || !("exact" in target.spec)) return candidates;
+  const nextSpec = { ...target.spec, exact } as LocatorSpec;
+  const next = candidates.slice();
+  next[index] = buildCandidate(nextSpec, doc);
+  return next;
 }

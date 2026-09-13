@@ -73,7 +73,19 @@ function codeFor(candidate: LocatorCandidate, language: CodeLanguage): string {
   return language === "typescript" ? candidate.typescript : candidate.csharp;
 }
 
-function candidateCard(candidate: LocatorCandidate, language: CodeLanguage): HTMLElement {
+function exactToggle(candidate: LocatorCandidate, onToggleExact: (exact: boolean) => void): HTMLElement | null {
+  if (!("exact" in candidate.spec)) return null;
+  const checkbox = el("input", { attrs: { type: "checkbox" } });
+  checkbox.checked = candidate.spec.exact;
+  checkbox.addEventListener("change", () => onToggleExact(checkbox.checked));
+  return el("label", { className: "lp-exact-toggle" }, [checkbox, document.createTextNode("Exact match")]);
+}
+
+function candidateCard(
+  candidate: LocatorCandidate,
+  language: CodeLanguage,
+  onToggleExact: (exact: boolean) => void,
+): HTMLElement {
   const badges = [
     el("span", { className: "lp-badge lp-badge-strategy", text: strategyLabel(candidate.spec.strategy) }),
     el("span", { className: badgeClassForBrittleness(candidate.brittleness.level), text: candidate.brittleness.level }),
@@ -95,8 +107,11 @@ function candidateCard(candidate: LocatorCandidate, language: CodeLanguage): HTM
     el("span", { className: "lp-match-count", text: matchCountLabel(candidate) }),
   ]);
 
+  const toggle = exactToggle(candidate, onToggleExact);
+
   const card = el("div", { className: "lp-candidate" }, [
     meta,
+    ...(toggle ? [toggle] : []),
     el("div", { className: "lp-code-row" }, [
       el("code", {
         className: "lp-code",
@@ -126,6 +141,7 @@ export interface DockedPanelHandlers {
   onFind: (raw: string) => void;
   onClose: () => void;
   onLanguageChange: (language: CodeLanguage) => void;
+  onToggleExact: (index: number, exact: boolean) => void;
   onOptions: () => void;
 }
 
@@ -186,9 +202,11 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
       results.appendChild(el("p", { className: "lp-empty", text: "No locator could be generated for this element." }));
       return;
     }
-    for (const candidate of currentCandidates) {
-      results.appendChild(candidateCard(candidate, currentLanguage));
-    }
+    currentCandidates.forEach((candidate, index) => {
+      results.appendChild(
+        candidateCard(candidate, currentLanguage, (exact) => handlers.onToggleExact(index, exact)),
+      );
+    });
   }
 
   function setPicking(active: boolean): void {

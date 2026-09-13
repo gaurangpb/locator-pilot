@@ -278,6 +278,22 @@
   margin-left: auto;
 }
 
+.lp-exact-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 2px;
+  color: #9aa3b8;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lp-exact-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
 .lp-code-row {
   display: flex;
   align-items: stretch;

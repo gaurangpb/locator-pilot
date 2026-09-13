@@ -1,4 +1,4 @@
-import { generateCandidates } from "../lib/locatorEngine";
+import { generateCandidates, refreshCandidates, withExact } from "../lib/locatorEngine";
 import { matchLocator } from "../lib/matcher";
 import {
   PAGE_CHANNEL,
@@ -58,17 +58,59 @@ function main(): void {
   let findError: string | undefined;
   const trackedHighlights: { box: HTMLElement; el: Element }[] = [];
 
+  // Live re-check: whichever frame most recently picked an element owns
+  // `liveRecheckCandidates` and watches its own document for changes, so an
+  // SPA re-render doesn't leave the panel showing stale match counts.
+  let liveRecheckObserver: MutationObserver | null = null;
+  let liveRecheckDebounce: number | undefined;
+  let liveRecheckCandidates: LocatorCandidate[] | null = null;
+
   document.documentElement.appendChild(host);
   window.addEventListener("scroll", repositionTrackedHighlights, { capture: true, passive: true });
   window.addEventListener("resize", repositionTrackedHighlights, { passive: true });
 
+  function handleContentResponse(message: ContentResponse): void {
+    if (message.type === "element-picked") onElementPicked(message.candidates);
+    else if (message.type === "find-result") onFindResult(message);
+    else onCandidatesUpdated(message.candidates);
+  }
+
   function publishToTop(message: ContentResponse): void {
     if (isTopFrame) {
-      if (message.type === "element-picked") onElementPicked(message.candidates);
-      else onFindResult(message);
+      handleContentResponse(message);
       return;
     }
     window.top?.postMessage({ source: PAGE_CHANNEL, message }, "*");
+  }
+
+  function stopLiveRecheck(): void {
+    liveRecheckObserver?.disconnect();
+    liveRecheckObserver = null;
+    if (liveRecheckDebounce !== undefined) {
+      window.clearTimeout(liveRecheckDebounce);
+      liveRecheckDebounce = undefined;
+    }
+    liveRecheckCandidates = null;
+  }
+
+  function startLiveRecheck(candidates: LocatorCandidate[]): void {
+    stopLiveRecheck();
+    liveRecheckCandidates = candidates;
+    liveRecheckObserver = new MutationObserver(() => {
+      if (liveRecheckDebounce !== undefined) return;
+      liveRecheckDebounce = window.setTimeout(() => {
+        liveRecheckDebounce = undefined;
+        if (!liveRecheckCandidates) return;
+        liveRecheckCandidates = refreshCandidates(liveRecheckCandidates, document);
+        publishToTop({ type: "candidates-updated", candidates: liveRecheckCandidates });
+      }, 300);
+    });
+    liveRecheckObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
   }
 
   function eventOnHost(e: Event): boolean {
@@ -145,6 +187,7 @@ function main(): void {
 
     const candidates = generateCandidates(target, { testIdAttribute: pendingTestIdAttribute });
     publishToTop({ type: "element-picked", candidates });
+    startLiveRecheck(candidates);
     const highlight = showHighlightOn(target);
     setTimeout(() => {
       untrackHighlight(highlight);
@@ -160,6 +203,9 @@ function main(): void {
   }
 
   function startPicker(testIdAttribute: string): void {
+    // A fresh pick is starting — whichever frame currently owns the live
+    // re-check for a previous pick is about to be superseded.
+    stopLiveRecheck();
     pendingTestIdAttribute = testIdAttribute;
     if (pickerActive) return;
     pickerActive = true;
@@ -267,6 +313,9 @@ function main(): void {
           pendingLanguage = next;
           void saveLanguage(next);
         },
+        onToggleExact: (index, exact) => {
+          broadcast({ type: "recompute-exact", index, exact });
+        },
         onOptions: () => {
           void chrome.runtime.sendMessage({ type: "open-options" });
         },
@@ -282,6 +331,7 @@ function main(): void {
     stopPicker({ keepPanelArmed: false, broadcastStop: true });
     if (panelApi) panelApi.root.style.display = "none";
     panelVisible = false;
+    broadcast({ type: "clear-live-recheck" });
   }
 
   function onElementPicked(candidates: LocatorCandidate[]): void {
@@ -302,10 +352,14 @@ function main(): void {
     findChained = findChained || message.chained;
   }
 
+  function onCandidatesUpdated(candidates: LocatorCandidate[]): void {
+    if (!isTopFrame) return;
+    panelApi?.setCandidates(candidates);
+  }
+
   window.addEventListener("message", (event: MessageEvent) => {
     if (!isTopFrame || !isPageEnvelope(event.data)) return;
-    if (event.data.message.type === "element-picked") onElementPicked(event.data.message.candidates);
-    else onFindResult(event.data.message);
+    handleContentResponse(event.data.message);
   });
 
   chrome.runtime.onMessage.addListener((message: ExtensionMessage) => {
@@ -321,6 +375,12 @@ function main(): void {
       stopPicker({ keepPanelArmed: false, broadcastStop: false });
     } else if (message.type === "find-locator") {
       handleFindLocator(message.raw, message.testIdAttribute);
+    } else if (message.type === "clear-live-recheck") {
+      stopLiveRecheck();
+    } else if (message.type === "recompute-exact") {
+      if (!liveRecheckCandidates) return;
+      liveRecheckCandidates = withExact(liveRecheckCandidates, message.index, message.exact, document);
+      publishToTop({ type: "candidates-updated", candidates: liveRecheckCandidates });
     }
   });
 }
