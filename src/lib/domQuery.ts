@@ -3,6 +3,10 @@
 // handled separately: the extension injects this same content script into
 // every frame (see manifest permissions), so each frame's own script instance
 // only ever needs to search its own document — no cross-frame piercing here.
+//
+// XPath is the deliberate exception: Playwright's own XPath engine does not
+// pierce shadow roots, so deepEvaluateXPath below intentionally evaluates
+// only against the main document to match real Playwright match counts.
 
 export type SearchRoot = Document | ShadowRoot;
 
@@ -38,27 +42,25 @@ export function deepQueryAll(root: SearchRoot): Element[] {
 
 export function deepEvaluateXPath(doc: Document, expression: string): Element[] {
   const results: Element[] = [];
-  for (const r of walkRoots(doc)) {
-    // XPath evaluation needs a Node context; ShadowRoot works as one in
-    // evergreen browsers even though it's not part of the formal spec.
-    try {
-      const contextNode: Node = r === doc ? doc : (r as unknown as Node);
-      const xpathResult = doc.evaluate(
-        expression,
-        contextNode,
-        null,
-        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-        null,
-      );
-      for (let i = 0; i < xpathResult.snapshotLength; i++) {
-        const node = xpathResult.snapshotItem(i);
-        if (node instanceof Element) results.push(node);
-      }
-    } catch {
-      // malformed expression or root doesn't support evaluate as context
+  // Unlike the other deep* helpers, this does NOT walk shadow roots: real
+  // Playwright XPath locators never match into shadow DOM, so piercing here
+  // would report matches that a real page.locator('xpath=...') would miss.
+  try {
+    const xpathResult = doc.evaluate(
+      expression,
+      doc,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null,
+    );
+    for (let i = 0; i < xpathResult.snapshotLength; i++) {
+      const node = xpathResult.snapshotItem(i);
+      if (node instanceof Element) results.push(node);
     }
+  } catch {
+    // malformed expression
   }
-  return Array.from(new Set(results));
+  return results;
 }
 
 /** Pierces shadow roots to find the actual innermost element under a point. */

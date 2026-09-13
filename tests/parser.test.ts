@@ -90,4 +90,39 @@ describe("parseLocator", () => {
     expect(guessed).toBe(true);
     expect(chained).toBe(false);
   });
+
+  it("rejects a JS regex literal passed to getByText with a clear error", () => {
+    expect(() => parseLocator(`page.getByText(/submit/i)`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("rejects a JS regex literal passed to getByLabel", () => {
+    expect(() => parseLocator(`page.getByLabel(/email/)`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("rejects a JS regex literal passed to getByPlaceholder", () => {
+    expect(() => parseLocator(`page.getByPlaceholder(/search/i)`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("rejects a JS regex literal passed to getByTestId", () => {
+    expect(() => parseLocator(`page.getByTestId(/^row-\\d+$/)`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("rejects a regex passed as getByRole's name option", () => {
+    expect(() => parseLocator(`page.getByRole('button', { name: /submit/i })`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("rejects a .NET Regex() passed as GetByRole's Name option", () => {
+    expect(() =>
+      parseLocator(`Page.GetByRole(AriaRole.Button, new() { Name = new Regex("Submit") })`, "data-testid"),
+    ).toThrow(/regex/i);
+  });
+
+  it("rejects a bare pasted regex literal", () => {
+    expect(() => parseLocator(`/submit/i`, "data-testid")).toThrow(/regex/i);
+  });
+
+  it("does not reject a plain string that happens to contain slashes", () => {
+    const { spec } = parseLocator(`page.getByText('a/b')`, "data-testid");
+    expect(spec).toMatchObject({ strategy: "text", text: "a/b" });
+  });
 });

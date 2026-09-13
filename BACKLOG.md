@@ -15,21 +15,26 @@ Status legend: `[ ]` open, `[x]` done.
   these as "robust, 1 match" — a locator that will find 0 elements in a real test.
   Confirmed for all three hiding mechanisms. Fix in [matcher.ts](src/lib/matcher.ts)
   `matchByRole`.
-- [ ] **XPath match counts don't match Playwright's real semantics with shadow DOM.**
+- [x] **XPath match counts don't match Playwright's real semantics with shadow DOM.**
   Playwright's XPath engine does not pierce shadow roots; `domQuery.ts`'s
   `deepEvaluateXPath` does, so `xpath=//button[1]` on a page with a light-DOM button
   and a shadow-DOM button reports 2 matches when real Playwright would find 1. This
   is the strategy the tool already flags as brittle, but for the wrong reason —
-  worth fixing since XPath is still common in legacy suites.
+  worth fixing since XPath is still common in legacy suites. Fixed in
+  [domQuery.ts](src/lib/domQuery.ts) `deepEvaluateXPath` — it now evaluates only
+  against the main document instead of walking shadow roots.
 - [x] **Chained/compound locators are silently truncated.**
   `page.getByTestId('foo').getByRole('button')`, `.filter({hasText})`, `.first()`,
   `.nth()` all get silently dropped by the parser — only the first method call is
   used, so "Find on page" highlights the wrong (usually broader/container) element
   with no indication anything was lost.
-- [ ] **Regex locator arguments aren't recognized.** `getByText(/submit/i)` doesn't
+- [x] **Regex locator arguments aren't recognized.** `getByText(/submit/i)` doesn't
   match the parser's quoted-string pattern, so it silently falls through to
   `guessed: true` and gets treated as an invalid raw CSS selector instead of
-  surfacing a clear "regex arguments aren't supported yet" message.
+  surfacing a clear "regex arguments aren't supported yet" message. Fixed in
+  [parser.ts](src/lib/parser.ts) — JS regex literals and `.NET` `new Regex(...)`
+  arguments (positional or in a `name`/`Name` option) now throw a clear
+  "regex arguments aren't supported yet" error instead of being misparsed.
 
 ## P1 — Missing features with real user impact
 

@@ -139,7 +139,34 @@ function findExactFlag(optionsText: string): boolean {
   return /\b(exact|Exact)\s*[:=]\s*true\b/.test(optionsText);
 }
 
+/** Throws when an options object's key is present but set to a regex, rather than a plain string — e.g. `{ name: /submit/i }`. */
+function rejectRegexOption(optionsText: string, keys: string[], methodLabel: string): void {
+  for (const key of keys) {
+    const re = new RegExp(`${key}\\s*[:=]\\s*(\\/(?:\\\\.|[^\\\\/\\n])+\\/[a-z]*|new\\s+(?:[\\w.]+\\.)?Regex\\s*\\()`, "i");
+    if (re.test(optionsText)) {
+      throw new Error(`Regex arguments aren't supported yet — use a plain string for ${methodLabel}()'s name option.`);
+    }
+  }
+}
+
 const QUOTED = /^("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/;
+
+/** A JS regex literal (`/submit/i`) or a .NET `new Regex(...)` construction, as used for a locator argument. */
+const JS_REGEX_LITERAL = /^\/(?:\\.|[^\\/\n])+\/[a-z]*$/i;
+const DOTNET_REGEX_CTOR = /new\s+(?:[\w.]+\.)?Regex\s*\(/i;
+
+function looksLikeRegexArg(raw: string): boolean {
+  const trimmed = raw.trim();
+  return JS_REGEX_LITERAL.test(trimmed) || DOTNET_REGEX_CTOR.test(trimmed);
+}
+
+/** Throws a clear error when a locator's first positional argument is a regex — not supported yet, and otherwise silently misparsed as a raw selector. */
+function rejectRegexArg(argsText: string, methodLabel: string): void {
+  const raw = splitTopLevelArgs(argsText)[0]?.trim();
+  if (raw && looksLikeRegexArg(raw)) {
+    throw new Error(`Regex arguments aren't supported yet — use a plain string for ${methodLabel}().`);
+  }
+}
 
 function firstPositionalArg(argsText: string): string | null {
   const args = splitTopLevelArgs(argsText);
@@ -171,6 +198,9 @@ function parseSelectorString(raw: string): LocatorSpec {
   if (raw.startsWith("//") || raw.startsWith("(//") || raw.startsWith("./")) {
     return { strategy: "xpath", expression: raw };
   }
+  if (looksLikeRegexArg(raw)) {
+    throw new Error("Regex arguments aren't supported yet — paste a plain string instead.");
+  }
   return { strategy: "css", selector: raw };
 }
 
@@ -196,6 +226,7 @@ export function parseLocator(input: string, testIdAttribute: string): ParseResul
       const role = firstPositionalRole(args);
       if (role) {
         const name = findOptionValue(args, ["name", "Name"]);
+        if (name === undefined) rejectRegexOption(args, ["name", "Name"], "getByRole");
         const exact = findExactFlag(args);
         return { guessed: false, chained, spec: { strategy: "role", role, name, exact } };
       }
@@ -204,6 +235,7 @@ export function parseLocator(input: string, testIdAttribute: string): ParseResul
       if (value !== null) {
         return { guessed: false, chained, spec: { strategy: "label", text: value, exact: findExactFlag(args) } };
       }
+      rejectRegexArg(args, "getByLabel");
     } else if (method === "getbyplaceholder") {
       const value = firstPositionalArg(args);
       if (value !== null) {
@@ -213,16 +245,19 @@ export function parseLocator(input: string, testIdAttribute: string): ParseResul
           spec: { strategy: "placeholder", text: value, exact: findExactFlag(args) },
         };
       }
+      rejectRegexArg(args, "getByPlaceholder");
     } else if (method === "getbytext") {
       const value = firstPositionalArg(args);
       if (value !== null) {
         return { guessed: false, chained, spec: { strategy: "text", text: value, exact: findExactFlag(args) } };
       }
+      rejectRegexArg(args, "getByText");
     } else if (method === "getbytestid") {
       const value = firstPositionalArg(args);
       if (value !== null) {
         return { guessed: false, chained, spec: { strategy: "testId", attribute: testIdAttribute, value } };
       }
+      rejectRegexArg(args, "getByTestId");
     } else if (method === "locator") {
       const value = firstPositionalArg(args);
       if (value !== null) {
