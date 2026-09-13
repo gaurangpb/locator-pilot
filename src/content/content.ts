@@ -142,11 +142,22 @@ function main(): void {
     return highlightBox;
   }
 
+  // Some elements are the correct locator target but render at a near-zero size —
+  // e.g. a custom radio/checkbox's real <input>, kept in the accessibility tree but
+  // visually hidden behind a styled label/icon (common enough that our own
+  // interactive-relative resolution, docs/LOCATOR_STRATEGY.md §1, routinely lands on
+  // one). Without a floor, the highlight box shrinks to match and disappears into an
+  // unhelpful dot. Pad it out to a minimum size around the same center point so it
+  // stays visible without misrepresenting where the element actually is.
+  const MIN_HIGHLIGHT_SIZE = 20;
+
   function positionBox(box: HTMLElement, rect: DOMRect): void {
-    box.style.left = `${rect.left}px`;
-    box.style.top = `${rect.top}px`;
-    box.style.width = `${rect.width}px`;
-    box.style.height = `${rect.height}px`;
+    const width = Math.max(rect.width, MIN_HIGHLIGHT_SIZE);
+    const height = Math.max(rect.height, MIN_HIGHLIGHT_SIZE);
+    box.style.left = `${rect.left - (width - rect.width) / 2}px`;
+    box.style.top = `${rect.top - (height - rect.height) / 2}px`;
+    box.style.width = `${width}px`;
+    box.style.height = `${height}px`;
   }
 
   function showHighlightOn(el: Element, secondary = false): HTMLElement {

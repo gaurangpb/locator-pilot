@@ -141,3 +141,10 @@ Status legend: `[ ]` open, `[x]` done.
 - [x] Highlight boxes now track their source element and reposition on
   scroll/resize instead of staying pinned to the viewport coordinates captured at
   find-time. ([content.ts](src/content/content.ts))
+- [x] **Highlight boxes collapsed to an invisible dot on near-zero-size targets.**
+  A custom radio/checkbox's real `<input>` is often kept in the accessibility tree
+  (so it's a valid, exposed locator target) but rendered at ~0px, visually hidden
+  behind a styled label/icon — exactly the kind of element our interactive-relative
+  resolution (§1) routinely resolves to. `positionBox` in
+  [content.ts](src/content/content.ts) now floors the highlight box to a minimum
+  20x20px, centered on the element's real position, instead of shrinking to match.
