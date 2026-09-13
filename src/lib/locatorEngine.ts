@@ -121,6 +121,13 @@ function buildXPath(el: Element): string {
   return `//${segments.join("/")}`;
 }
 
+/**
+ * Strategy order here follows docs/LOCATOR_STRATEGY.md §2: role → label →
+ * placeholder → text → testId → css → xpath. That doc is the source of truth for
+ * *why* — keep it in sync with any change here, including the still-unimplemented
+ * pieces it tracks (altText/title strategies, and resolving to a nearby interactive
+ * ancestor/descendant when `el` itself has no role — see §1).
+ */
 function buildSpecs(el: Element, doc: Document, options: EngineOptions): LocatorSpec[] {
   const specs: LocatorSpec[] = [];
   const role = getImplicitRole(el);

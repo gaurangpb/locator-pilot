@@ -10,7 +10,9 @@ locator back in to find and highlight it on the current page.
   pick an element. The panel stays open. Works inside open shadow roots and same-origin
   iframes. A C# / TypeScript toggle remembers your last choice.
 - **Ranked locator candidates** — up to 3 per element, following Playwright's own
-  priority: role/name → label → placeholder → text → test-id → CSS → XPath.
+  priority: role/name → label → placeholder → text → test-id → CSS → XPath. See
+  [docs/LOCATOR_STRATEGY.md](./docs/LOCATOR_STRATEGY.md) for the full precedence and
+  element-resolution rules behind this ranking.
 - **Live uniqueness check** — every candidate shows how many elements on the page it
   currently matches.
 - **Brittleness warnings** — flags locators built on auto-generated class names,
