@@ -68,6 +68,8 @@ export interface LocatorCandidate {
   spec: LocatorSpec;
   matchCount: number;
   isUnique: boolean;
+  /** True when at least one matched element is CSS-hidden (display:none or visibility:hidden) — Playwright actionability (click, fill, etc.) will fail or time out on it even though the locator resolves. Deliberately excludes aria-hidden, which is a common pattern on visible decorative elements and doesn't affect actionability. */
+  hasHiddenMatch: boolean;
   brittleness: BrittlenessResult;
   csharp: string;
   typescript: string;

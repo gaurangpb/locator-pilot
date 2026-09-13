@@ -38,9 +38,14 @@ Status legend: `[ ]` open, `[x]` done.
 
 ## P1 — Missing features with real user impact
 
-- [ ] **No visibility/actionability signal in the UI.** Even after the P0 matcher
+- [x] **No visibility/actionability signal in the UI.** Even after the P0 matcher
   fix, the panel gives no visual cue that a candidate targets a hidden element —
-  add a badge/warning independent of which strategy is shown.
+  add a badge/warning independent of which strategy is shown. Added
+  `hasHiddenMatch` to `LocatorCandidate` ([types.ts](src/lib/types.ts)), computed
+  in [locatorEngine.ts](src/lib/locatorEngine.ts) from the same
+  `isExposedToAccessibilityTree` check the P0 role fix uses, and surfaced as an
+  orange "Hidden" badge on any candidate card in [ui.ts](src/content/ui.ts)
+  regardless of strategy.
 - [ ] **No live re-check of match counts.** Counts are computed once at pick/find
   time; on an SPA that re-renders, a "1 match, robust" badge can go stale
   immediately. Consider a refresh action or a `MutationObserver`-driven re-check

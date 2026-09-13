@@ -76,4 +76,50 @@ describe("generateCandidates", () => {
     const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
     expect(cssCandidate?.brittleness.level).toBe("fragile");
   });
+
+  it("flags a testId candidate targeting a hidden element with hasHiddenMatch", () => {
+    const doc = setBody(`<button style="display:none" data-testid="ghost-btn">Ghost</button>`);
+    const el = doc.querySelector("button")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const testIdCandidate = candidates.find((c) => c.spec.strategy === "testId");
+    expect(testIdCandidate?.matchCount).toBe(1);
+    expect(testIdCandidate?.hasHiddenMatch).toBe(true);
+  });
+
+  it("flags a css candidate targeting a hidden, roleless element with hasHiddenMatch", () => {
+    const doc = setBody(`<div id="ghost" style="display:none"></div>`);
+    const el = doc.getElementById("ghost")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
+    expect(cssCandidate?.matchCount).toBe(1);
+    expect(cssCandidate?.hasHiddenMatch).toBe(true);
+  });
+
+  it("does not flag hasHiddenMatch for an ordinary visible element", () => {
+    const doc = setBody(`<button id="submit-btn">Submit</button>`);
+    const el = doc.getElementById("submit-btn")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(candidates.every((c) => c.hasHiddenMatch === false)).toBe(true);
+  });
+
+  it("does not flag hasHiddenMatch for a visible element that is merely aria-hidden (common decorative-icon pattern)", () => {
+    // aria-hidden excludes an element from the accessibility tree (so a role
+    // candidate correctly gets 0 matches), but the element is still on screen
+    // and clickable — a css/testId candidate targeting it should NOT get the
+    // "Hidden" warning, since Playwright's actionability checks don't consult
+    // aria-hidden at all.
+    const doc = setBody(`<img aria-hidden="true" data-testid="goal-icon" src="icon.svg" />`);
+    const el = doc.querySelector("img")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const roleCandidate = candidates.find((c) => c.spec.strategy === "role");
+    expect(roleCandidate?.matchCount).toBe(0);
+
+    const testIdCandidate = candidates.find((c) => c.spec.strategy === "testId");
+    expect(testIdCandidate?.matchCount).toBe(1);
+    expect(testIdCandidate?.hasHiddenMatch).toBe(false);
+  });
 });

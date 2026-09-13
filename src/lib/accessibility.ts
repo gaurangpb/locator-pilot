@@ -53,7 +53,7 @@ function parentOrHost(node: Element): Element | null {
 }
 
 /** CSS-hidden check (display:none / visibility:hidden), ancestor- and shadow-boundary-aware. */
-function isCssVisible(el: Element): boolean {
+export function isCssVisible(el: Element): boolean {
   // checkVisibility() is the accurate, native way to do this (accounts for a
   // visibility:visible descendant overriding a hidden ancestor, etc.) but isn't
   // implemented in jsdom, so fall back to a simpler ancestor walk there.

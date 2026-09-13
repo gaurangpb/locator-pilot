@@ -1,4 +1,4 @@
-import { getAccessibleName, getImplicitRole } from "./accessibility";
+import { getAccessibleName, getImplicitRole, isCssVisible } from "./accessibility";
 import { assessBrittleness } from "./brittleness";
 import { toCSharp, toTypeScript } from "./codegen";
 import { cssEscape } from "./cssEscape";
@@ -185,6 +185,12 @@ export function generateCandidates(
       spec,
       matchCount: matches.length,
       isUnique: matches.length === 1,
+      // CSS-hidden only (display:none/visibility:hidden) — this is what makes an
+      // element non-actionable for Playwright regardless of locator strategy.
+      // aria-hidden alone does NOT belong here: it's a common, intentional
+      // pattern on visible decorative icons, and only affects accessibility-tree
+      // based strategies (role/label), which already filter it out themselves.
+      hasHiddenMatch: matches.some((match) => !isCssVisible(match)),
       brittleness: assessBrittleness(spec),
       csharp: toCSharp(spec),
       typescript: toTypeScript(spec),

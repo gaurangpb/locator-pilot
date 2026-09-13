@@ -266,6 +266,12 @@
   color: #f87171;
 }
 
+.lp-badge-hidden {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.4);
+}
+
 .lp-match-count {
   font-size: 11px;
   color: #9aa3b8;

@@ -74,9 +74,24 @@ function codeFor(candidate: LocatorCandidate, language: CodeLanguage): string {
 }
 
 function candidateCard(candidate: LocatorCandidate, language: CodeLanguage): HTMLElement {
-  const meta = el("div", { className: "lp-candidate-meta" }, [
+  const badges = [
     el("span", { className: "lp-badge lp-badge-strategy", text: strategyLabel(candidate.spec.strategy) }),
     el("span", { className: badgeClassForBrittleness(candidate.brittleness.level), text: candidate.brittleness.level }),
+  ];
+  if (candidate.hasHiddenMatch) {
+    badges.push(
+      el("span", {
+        className: "lp-badge lp-badge-hidden",
+        text: "Hidden",
+        attrs: {
+          title:
+            "Matches a CSS-hidden element (display:none or visibility:hidden) — Playwright actions like click/fill will fail or time out on it.",
+        },
+      }),
+    );
+  }
+  const meta = el("div", { className: "lp-candidate-meta" }, [
+    ...badges,
     el("span", { className: "lp-match-count", text: matchCountLabel(candidate) }),
   ]);
 
