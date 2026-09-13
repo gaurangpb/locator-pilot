@@ -43,21 +43,25 @@ Status legend: `[ ]` open, `[x]` done.
 > [docs/LOCATOR_STRATEGY.md](docs/LOCATOR_STRATEGY.md). The two items below are the
 > not-yet-implemented pieces of that design; keep the doc in sync with any change.
 
-- [ ] **CSS candidates include transient state/framework classes.** `buildCssSelector`
-  only strips hash-like auto-generated class names — it keeps state classes
+- [x] **CSS candidates include transient state/framework classes.** `buildCssSelector`
+  only stripped hash-like auto-generated class names — it kept state classes
   (`--selected`, `is-*`) and hydration markers (`hydrated`, `ng-star-inserted`)
-  verbatim, so a candidate like `sdps-card.sdps-card--selected.hydrated` stops
-  matching the moment the card is deselected. See
+  verbatim, so a candidate like `sdps-card.sdps-card--selected.hydrated` stopped
+  matching the moment the card is deselected. Fixed via `isTransientClassToken` in
+  [locatorEngine.ts](src/lib/locatorEngine.ts) `buildCssSelector`, per
   [docs/LOCATOR_STRATEGY.md §2.7](docs/LOCATOR_STRATEGY.md#2-strategy-precedence--once-we-know-the-target-element).
-  Fix in [locatorEngine.ts](src/lib/locatorEngine.ts) `buildCssSelector`.
-- [ ] **No "nearest interactive relative" resolution.** Candidates are only ever
+- [x] **No "nearest interactive relative" resolution.** Candidates were only ever
   generated from the exact element the user clicked. A role-less wrapper (common
   with custom elements/web components, e.g. `<sdps-card>` wrapping a labelled
-  `<input type="radio">`) falls straight through to a CSS class chain, even though a
-  uniquely-identifiable interactive ancestor or descendant exists one hop away. See
+  `<input type="radio">`) fell straight through to a CSS class chain, even though a
+  uniquely-identifiable interactive ancestor or descendant existed one hop away.
+  Added `resolveTargetElement`/`pickCandidates` in
+  [locatorEngine.ts](src/lib/locatorEngine.ts), wired through a new `resolvedVia`
+  field on the `element-picked`/`candidates-updated` messages
+  ([messages.ts](src/lib/messages.ts), [content.ts](src/content/content.ts)), and
+  surfaced in the panel as a blue note + secondary highlight box on the resolved
+  element ([ui.ts](src/content/ui.ts), [overlay.css](src/content/overlay.css)) per
   [docs/LOCATOR_STRATEGY.md §1](docs/LOCATOR_STRATEGY.md#1-element-resolution--which-node-do-we-generate-specs-from).
-  Needs UI support too (§1.3) to make clear when the resolved element differs from
-  the one the user clicked — relates to the "non-unique candidates" item below.
 - [x] **No visibility/actionability signal in the UI.** Even after the P0 matcher
   fix, the panel gives no visual cue that a candidate targets a hidden element —
   add a badge/warning independent of which strategy is shown. Added

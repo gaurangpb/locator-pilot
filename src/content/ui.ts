@@ -1,4 +1,4 @@
-import type { BrittlenessLevel, CodeLanguage, LocatorCandidate } from "../lib/types";
+import type { BrittlenessLevel, CodeLanguage, LocatorCandidate, ResolutionKind } from "../lib/types";
 
 interface ElOptions {
   className?: string;
@@ -149,13 +149,22 @@ export interface DockedPanelApi {
   root: HTMLElement;
   setPicking(active: boolean): void;
   setLanguage(language: CodeLanguage): void;
-  setCandidates(candidates: LocatorCandidate[] | null): void;
+  setCandidates(candidates: LocatorCandidate[] | null, resolvedVia?: ResolutionKind | null): void;
   setFindResult(text: string, kind: FindKind): void;
+}
+
+function resolutionNoteText(resolvedVia: ResolutionKind): string {
+  // See docs/LOCATOR_STRATEGY.md §1 — candidates below target a different element
+  // than the one clicked; the blue box on the page marks it.
+  return resolvedVia === "descendant"
+    ? "The element you clicked has no accessible name of its own — showing locators for a labelled control nested inside it instead (blue highlight)."
+    : "The element you clicked has no accessible name of its own — showing locators for the nearest interactive ancestor instead (blue highlight).";
 }
 
 export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHandlers): DockedPanelApi {
   let currentLanguage = language;
   let currentCandidates: LocatorCandidate[] | null = null;
+  let currentResolvedVia: ResolutionKind | null = null;
   let picking = false;
 
   const pickBtn = el("button", { className: "lp-primary-btn", text: "Pick an element", attrs: { type: "button" } });
@@ -205,6 +214,9 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
     if (currentCandidates.length === 0) {
       results.appendChild(el("p", { className: "lp-empty", text: "No locator could be generated for this element." }));
       return;
+    }
+    if (currentResolvedVia) {
+      results.appendChild(el("p", { className: "lp-resolved-note", text: resolutionNoteText(currentResolvedVia) }));
     }
     currentCandidates.forEach((candidate, index) => {
       results.appendChild(
@@ -291,8 +303,9 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
       syncLanguageButtons();
       renderResults();
     },
-    setCandidates(candidates) {
+    setCandidates(candidates, resolvedVia = null) {
       currentCandidates = candidates;
+      currentResolvedVia = resolvedVia;
       renderResults();
     },
     setFindResult(text, kind) {

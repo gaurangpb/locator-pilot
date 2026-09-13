@@ -1,4 +1,4 @@
-import { generateCandidates, refreshCandidates, withExact } from "../lib/locatorEngine";
+import { pickCandidates, refreshCandidates, withExact } from "../lib/locatorEngine";
 import { matchLocator } from "../lib/matcher";
 import {
   PAGE_CHANNEL,
@@ -11,7 +11,7 @@ import {
 import { deepElementFromPoint } from "../lib/domQuery";
 import { parseLocator } from "../lib/parser";
 import { saveLanguage } from "../lib/settings";
-import type { CodeLanguage, LocatorCandidate } from "../lib/types";
+import type { CodeLanguage, LocatorCandidate, ResolutionKind } from "../lib/types";
 import overlayCss from "./overlay.css";
 import { buildDockedPanel, type DockedPanelApi } from "./ui";
 
@@ -64,15 +64,19 @@ function main(): void {
   let liveRecheckObserver: MutationObserver | null = null;
   let liveRecheckDebounce: number | undefined;
   let liveRecheckCandidates: LocatorCandidate[] | null = null;
+  // Set once at pick time and carried through every subsequent candidates-updated
+  // message for this pick (live re-check, exact-toggle) — resolution (docs/
+  // LOCATOR_STRATEGY.md §1) doesn't change as match counts are refreshed.
+  let liveRecheckResolvedVia: ResolutionKind | null = null;
 
   document.documentElement.appendChild(host);
   window.addEventListener("scroll", repositionTrackedHighlights, { capture: true, passive: true });
   window.addEventListener("resize", repositionTrackedHighlights, { passive: true });
 
   function handleContentResponse(message: ContentResponse): void {
-    if (message.type === "element-picked") onElementPicked(message.candidates);
+    if (message.type === "element-picked") onElementPicked(message.candidates, message.resolvedVia);
     else if (message.type === "find-result") onFindResult(message);
-    else onCandidatesUpdated(message.candidates);
+    else onCandidatesUpdated(message.candidates, message.resolvedVia);
   }
 
   function publishToTop(message: ContentResponse): void {
@@ -91,18 +95,24 @@ function main(): void {
       liveRecheckDebounce = undefined;
     }
     liveRecheckCandidates = null;
+    liveRecheckResolvedVia = null;
   }
 
-  function startLiveRecheck(candidates: LocatorCandidate[]): void {
+  function startLiveRecheck(candidates: LocatorCandidate[], resolvedVia: ResolutionKind | null): void {
     stopLiveRecheck();
     liveRecheckCandidates = candidates;
+    liveRecheckResolvedVia = resolvedVia;
     liveRecheckObserver = new MutationObserver(() => {
       if (liveRecheckDebounce !== undefined) return;
       liveRecheckDebounce = window.setTimeout(() => {
         liveRecheckDebounce = undefined;
         if (!liveRecheckCandidates) return;
         liveRecheckCandidates = refreshCandidates(liveRecheckCandidates, document);
-        publishToTop({ type: "candidates-updated", candidates: liveRecheckCandidates });
+        publishToTop({
+          type: "candidates-updated",
+          candidates: liveRecheckCandidates,
+          resolvedVia: liveRecheckResolvedVia,
+        });
       }, 300);
     });
     liveRecheckObserver.observe(document.documentElement, {
@@ -181,17 +191,26 @@ function main(): void {
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    const target = lastHovered ?? deepElementFromPoint(document, e.clientX, e.clientY);
+    const picked = lastHovered ?? deepElementFromPoint(document, e.clientX, e.clientY);
     stopPicker({ keepPanelArmed: false, broadcastStop: true });
-    if (!target) return;
+    if (!picked) return;
 
-    const candidates = generateCandidates(target, { testIdAttribute: pendingTestIdAttribute });
-    publishToTop({ type: "element-picked", candidates });
-    startLiveRecheck(candidates);
-    const highlight = showHighlightOn(target);
+    const { candidates, target, resolvedVia } = pickCandidates(picked, {
+      testIdAttribute: pendingTestIdAttribute,
+    });
+    publishToTop({ type: "element-picked", candidates, resolvedVia });
+    startLiveRecheck(candidates, resolvedVia);
+
+    // Always show what was clicked; when resolution (docs/LOCATOR_STRATEGY.md §1)
+    // promoted to a different element, add a second box so it's clear the
+    // candidates target that element, not the one under the cursor.
+    const highlights = [showHighlightOn(picked)];
+    if (target !== picked) highlights.push(showHighlightOn(target, true));
     setTimeout(() => {
-      untrackHighlight(highlight);
-      highlight.remove();
+      for (const highlight of highlights) {
+        untrackHighlight(highlight);
+        highlight.remove();
+      }
     }, 4000);
   }
 
@@ -321,7 +340,7 @@ function main(): void {
           // this frame isn't the one that owns the current pick.
           if (liveRecheckCandidates) {
             liveRecheckCandidates = withExact(liveRecheckCandidates, index, exact, document);
-            onCandidatesUpdated(liveRecheckCandidates);
+            onCandidatesUpdated(liveRecheckCandidates, liveRecheckResolvedVia);
           } else {
             broadcast({ type: "recompute-exact", index, exact });
           }
@@ -344,11 +363,11 @@ function main(): void {
     broadcast({ type: "clear-live-recheck" });
   }
 
-  function onElementPicked(candidates: LocatorCandidate[]): void {
+  function onElementPicked(candidates: LocatorCandidate[], resolvedVia: ResolutionKind | null): void {
     if (!isTopFrame) return;
     stopPicker({ keepPanelArmed: false, broadcastStop: true });
     showPanel(pendingLanguage);
-    panelApi?.setCandidates(candidates);
+    panelApi?.setCandidates(candidates, resolvedVia);
   }
 
   function onFindResult(message: FindResultMessage): void {
@@ -362,9 +381,9 @@ function main(): void {
     findChained = findChained || message.chained;
   }
 
-  function onCandidatesUpdated(candidates: LocatorCandidate[]): void {
+  function onCandidatesUpdated(candidates: LocatorCandidate[], resolvedVia: ResolutionKind | null): void {
     if (!isTopFrame) return;
-    panelApi?.setCandidates(candidates);
+    panelApi?.setCandidates(candidates, resolvedVia);
   }
 
   window.addEventListener("message", (event: MessageEvent) => {
@@ -390,7 +409,11 @@ function main(): void {
     } else if (message.type === "recompute-exact") {
       if (!liveRecheckCandidates) return;
       liveRecheckCandidates = withExact(liveRecheckCandidates, message.index, message.exact, document);
-      publishToTop({ type: "candidates-updated", candidates: liveRecheckCandidates });
+      publishToTop({
+        type: "candidates-updated",
+        candidates: liveRecheckCandidates,
+        resolvedVia: liveRecheckResolvedVia,
+      });
     }
   });
 }

@@ -43,7 +43,12 @@ Given the picked element `el`:
 4. If no unique interactive relative is found, fall back to building specs from `el`
    itself (role if any, then structural CSS/XPath) — today's behavior.
 
-**Status: designed, not yet implemented.** Tracked in `BACKLOG.md`.
+**Status: implemented** — `resolveTargetElement`/`pickCandidates` in
+[locatorEngine.ts](../src/lib/locatorEngine.ts). Resolution to an ancestor or
+descendant is surfaced to the panel via `resolvedVia` on the `element-picked`/
+`candidates-updated` messages, shown as a note plus a secondary highlight box on
+the resolved element ([ui.ts](../src/content/ui.ts),
+[content.ts](../src/content/content.ts)).
 
 ## 2. Strategy precedence — once we know the target element
 
@@ -69,9 +74,10 @@ Given the picked element `el`:
      produce exactly the kind of false-negative locator seen in the `sdps-card`
      case (`.sdps-card--selected.hydrated` stops matching the moment the card is
      deselected or before Stencil finishes hydrating it).
-   - **Status: rule designed, filtering not yet implemented** — `buildCssSelector`
-     currently only strips hash-like auto-generated class names, not state/framework
-     classes. Tracked in `BACKLOG.md`.
+   - **Status: implemented** — `isTransientClassToken` in
+     [locatorEngine.ts](../src/lib/locatorEngine.ts) filters both categories out of
+     `buildCssSelector`'s candidate classes, alongside the existing hash-like
+     auto-generated-class filter.
 8. `xpath` — absolute last resort; already flagged brittle by `assessBrittleness`.
 
 ## 3. Explicit non-goals / decisions

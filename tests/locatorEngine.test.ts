@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateCandidates, refreshCandidates, withExact } from "../src/lib/locatorEngine";
+import { generateCandidates, pickCandidates, refreshCandidates, withExact } from "../src/lib/locatorEngine";
 import { DEFAULT_TEST_ID_ATTRIBUTE } from "../src/lib/types";
 
 function setBody(html: string): Document {
@@ -183,5 +183,84 @@ describe("withExact", () => {
 
     const result = withExact(candidates, testIdIndex, true, doc);
     expect(result).toBe(candidates);
+  });
+});
+
+describe("buildCssSelector state-class filtering (docs/LOCATOR_STRATEGY.md §2.7)", () => {
+  it("excludes transient state and framework/hydration classes from the css candidate", () => {
+    // Mirrors a real-world case: a Stencil custom element whose CSS candidate
+    // included --selected (toggles off on deselect) and hydrated (present only
+    // once Stencil finishes hydrating), producing a locator that stops matching
+    // for reasons that have nothing to do with the page's actual markup changing.
+    const doc = setBody(`
+      <div id="wrap">
+        <custom-card class="custom-card custom-card--full-height custom-card--selected hydrated"></custom-card>
+      </div>
+    `);
+    const el = doc.querySelector("custom-card")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
+    expect(cssCandidate).toBeDefined();
+    const selector = (cssCandidate!.spec as { strategy: "css"; selector: string }).selector;
+    expect(selector).toContain("custom-card--full-height");
+    expect(selector).not.toContain("custom-card--selected");
+    expect(selector).not.toContain("hydrated");
+  });
+});
+
+describe("pickCandidates — interactive element resolution (docs/LOCATOR_STRATEGY.md §1)", () => {
+  it("resolves a role-less custom-element wrapper to a labelled control nested inside it", () => {
+    // The sdps-card case: a role-less wrapper around a labelled radio input.
+    const doc = setBody(`
+      <custom-card class="custom-card custom-card--selected hydrated">
+        <label>
+          <input type="radio" id="save-radio" aria-labelledby="save-radio-title" />
+          <h2 id="save-radio-title" aria-hidden="true">Save for retirement</h2>
+        </label>
+      </custom-card>
+    `);
+    const card = doc.querySelector("custom-card")!;
+    const result = pickCandidates(card, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBe("descendant");
+    expect(result.target.tagName.toLowerCase()).toBe("input");
+    const roleCandidate = result.candidates.find((c) => c.spec.strategy === "role");
+    expect(roleCandidate?.spec).toMatchObject({ role: "radio", name: "Save for retirement" });
+    expect(roleCandidate?.isUnique).toBe(true);
+  });
+
+  it("resolves to the nearest interactive ancestor when the clicked element is an icon inside a button", () => {
+    const doc = setBody(`<button id="submit-btn"><span id="icon-glyph"></span> Submit</button>`);
+    const icon = doc.getElementById("icon-glyph")!;
+    const result = pickCandidates(icon, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBe("ancestor");
+    expect(result.target.id).toBe("submit-btn");
+    const roleCandidate = result.candidates.find((c) => c.spec.strategy === "role");
+    expect(roleCandidate?.spec).toMatchObject({ role: "button", name: "Submit" });
+  });
+
+  it("never guesses between two equally-plausible interactive descendants", () => {
+    const doc = setBody(`
+      <custom-group>
+        <button aria-label="First">First</button>
+        <button aria-label="Second">Second</button>
+      </custom-group>
+    `);
+    const group = doc.querySelector("custom-group")!;
+    const result = pickCandidates(group, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBeNull();
+    expect(result.target).toBe(group);
+  });
+
+  it("does not resolve when the clicked element already has a usable role", () => {
+    const doc = setBody(`<button id="submit-btn">Submit</button>`);
+    const button = doc.getElementById("submit-btn")!;
+    const result = pickCandidates(button, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBeNull();
+    expect(result.target).toBe(button);
   });
 });

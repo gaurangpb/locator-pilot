@@ -79,6 +79,14 @@ export interface EngineOptions {
   testIdAttribute: string;
 }
 
+/**
+ * How the engine resolved away from the exact element the user picked, per
+ * docs/LOCATOR_STRATEGY.md §1 — "ancestor" or "descendant" means candidates target a
+ * different (uniquely-identifiable interactive) element than the one picked; null
+ * means no resolution happened and candidates target the picked element itself.
+ */
+export type ResolutionKind = "ancestor" | "descendant";
+
 export type CodeLanguage = "csharp" | "typescript";
 
 export const DEFAULT_TEST_ID_ATTRIBUTE = "data-testid";

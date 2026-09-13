@@ -1,4 +1,4 @@
-import type { CodeLanguage, LocatorCandidate } from "./types";
+import type { CodeLanguage, LocatorCandidate, ResolutionKind } from "./types";
 
 export const PAGE_CHANNEL = "locator-pilot";
 
@@ -60,6 +60,8 @@ export type ExtensionMessage =
 export interface ElementPickedMessage {
   type: "element-picked";
   candidates: LocatorCandidate[];
+  /** See docs/LOCATOR_STRATEGY.md §1 — non-null when candidates target a resolved ancestor/descendant instead of the picked element. */
+  resolvedVia: ResolutionKind | null;
 }
 
 export interface FindResultMessage {
@@ -74,6 +76,7 @@ export interface FindResultMessage {
 export interface CandidatesUpdatedMessage {
   type: "candidates-updated";
   candidates: LocatorCandidate[];
+  resolvedVia: ResolutionKind | null;
 }
 
 export type ContentResponse = ElementPickedMessage | FindResultMessage | CandidatesUpdatedMessage;
