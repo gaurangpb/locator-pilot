@@ -169,6 +169,10 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
       id: "lp-paste-input",
       rows: "3",
       placeholder: "e.g. page.getByRole('button', { name: 'Submit' })",
+      spellcheck: "false",
+      autocomplete: "off",
+      autocorrect: "off",
+      autocapitalize: "off",
     },
   });
   const findBtn = el("button", { className: "lp-primary-btn", text: "Find on page", attrs: { type: "button" } });

@@ -314,7 +314,17 @@ function main(): void {
           void saveLanguage(next);
         },
         onToggleExact: (index, exact) => {
-          broadcast({ type: "recompute-exact", index, exact });
+          // The common case (no iframes, or the pick happened in this very
+          // frame) can be handled synchronously and instantly. Only fall back
+          // to the cross-frame broadcast — a real round-trip through the
+          // background service worker, which can lag if it was asleep — when
+          // this frame isn't the one that owns the current pick.
+          if (liveRecheckCandidates) {
+            liveRecheckCandidates = withExact(liveRecheckCandidates, index, exact, document);
+            onCandidatesUpdated(liveRecheckCandidates);
+          } else {
+            broadcast({ type: "recompute-exact", index, exact });
+          }
         },
         onOptions: () => {
           void chrome.runtime.sendMessage({ type: "open-options" });
