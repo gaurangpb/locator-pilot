@@ -248,6 +248,35 @@ describe("buildCssSelector state-class filtering (docs/LOCATOR_STRATEGY.md §2.7
   });
 });
 
+describe("buildCssSelector stable-attribute selectors (docs/LOCATOR_STRATEGY.md §2.7)", () => {
+  it("prefers a stable, semantic attribute over a transient class chain", () => {
+    const doc = setBody(`
+      <div id="group">
+        <custom-option value="Save for retirement" class="option option--selected hydrated"></custom-option>
+        <custom-option value="Grow wealth" class="option hydrated"></custom-option>
+      </div>
+    `);
+    const el = doc.querySelector('custom-option[value="Save for retirement"]')!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
+    const selector = (cssCandidate!.spec as { strategy: "css"; selector: string }).selector;
+    expect(selector).toBe('custom-option[value="Save for retirement"]');
+    expect(selector).not.toContain("option--selected");
+    expect(selector).not.toContain("hydrated");
+  });
+
+  it("falls back to classes/nth-of-type when none of the curated attributes are present", () => {
+    const doc = setBody(`<div class="widget widget--card"><span></span></div>`);
+    const el = doc.querySelector("span")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
+    const selector = (cssCandidate!.spec as { strategy: "css"; selector: string }).selector;
+    expect(selector).not.toContain("[");
+  });
+});
+
 describe("pickCandidates — interactive element resolution (docs/LOCATOR_STRATEGY.md §1)", () => {
   it("resolves a role-less custom-element wrapper to a labelled control nested inside it", () => {
     // The sdps-card case: a role-less wrapper around a labelled radio input.
@@ -301,5 +330,46 @@ describe("pickCandidates — interactive element resolution (docs/LOCATOR_STRATE
 
     expect(result.resolvedVia).toBeNull();
     expect(result.target).toBe(button);
+  });
+
+  it("does not resolve to a screen-reader-only descendant — the real sdps-card shape: a native radio hidden via sr-only inside a <label> that IS the whole visible card", () => {
+    // Real-world repro (reported after the earlier "descendant" fix shipped): the
+    // radio here has `class="sr-only"`, so it's exposed to the accessibility tree
+    // (a technically valid, unique role match) but renders at ~0px — its visible
+    // "clickable card" is the entire <label>, not the input. Resolving to the input
+    // anyway produced a locator whose highlight landed nowhere meaningful. The
+    // fallback should be the card itself, and its css candidate should use the
+    // stable `value` attribute rather than the old transient class chain.
+    const doc = setBody(`
+      <custom-card value="Save for retirement" class="custom-card custom-card--selected hydrated">
+        <label>
+          <input type="radio" class="sr-only" aria-labelledby="title-1" />
+          <h2 id="title-1" aria-hidden="true">Save for retirement</h2>
+        </label>
+      </custom-card>
+    `);
+    const card = doc.querySelector("custom-card")!;
+    const result = pickCandidates(card, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBeNull();
+    expect(result.target).toBe(card);
+    const cssCandidate = result.candidates.find((c) => c.spec.strategy === "css");
+    expect(cssCandidate?.spec).toMatchObject({ selector: 'custom-card[value="Save for retirement"]' });
+  });
+
+  it("still resolves to a non-sr-only interactive descendant (regression check for the fix above)", () => {
+    const doc = setBody(`
+      <custom-card class="custom-card custom-card--selected hydrated">
+        <label>
+          <input type="radio" id="save-radio" aria-labelledby="save-radio-title" />
+          <h2 id="save-radio-title" aria-hidden="true">Save for retirement</h2>
+        </label>
+      </custom-card>
+    `);
+    const card = doc.querySelector("custom-card")!;
+    const result = pickCandidates(card, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    expect(result.resolvedVia).toBe("descendant");
+    expect(result.target.tagName.toLowerCase()).toBe("input");
   });
 });

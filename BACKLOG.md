@@ -148,3 +148,17 @@ Status legend: `[ ]` open, `[x]` done.
   resolution (§1) routinely resolves to. `positionBox` in
   [content.ts](src/content/content.ts) now floors the highlight box to a minimum
   20x20px, centered on the element's real position, instead of shrinking to match.
+- [x] **Interactive-descendant resolution (§1) resolved into screen-reader-only
+  controls, which was actually wrong, not just visually confusing.** Reported
+  against the real `sdps-card` page: its radio is `class="sdps-sr-only"`, hidden
+  behind a `<label>` that IS the whole visible card. Resolving to it "worked" (valid,
+  unique role match) but pointed at an element with no meaningful on-page position.
+  Fixed two ways in [locatorEngine.ts](src/lib/locatorEngine.ts): (1)
+  `isScreenReaderOnly` now excludes `.sr-only`/`.visually-hidden`/
+  `.screen-reader-text`-style elements from resolution targets entirely, so
+  resolution correctly declines and falls back to the card itself; (2) `buildCssSelector`
+  gained the `findStableAttribute` step already documented (but never implemented)
+  in [docs/LOCATOR_STRATEGY.md §2.7](docs/LOCATOR_STRATEGY.md#2-strategy-precedence--once-we-know-the-target-element) —
+  trying `name`/`type`/`value`/`href`/`alt`/`title` before classes — so that
+  fallback is now `sdps-card[value="Save for retirement"]` instead of the original
+  transient class chain.

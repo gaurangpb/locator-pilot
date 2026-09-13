@@ -35,7 +35,18 @@ Given the picked element `el`:
    2. **Nearest interactive descendant.** Walk down the same bound for a single
       element that has both a role and a resolvable accessible name. Handles
       "clicked a custom-element card wrapping a labelled `<input>`" — the
-      `sdps-card` case.
+      `sdps-card` case. **Exception:** skip a descendant that's screen-reader-only
+      (the classic `.sr-only`/`.visually-hidden` utility-class pattern) — it's a
+      technically valid, unique role/name match, but such a control is normally kept
+      in the a11y tree while being visually hidden behind the very ancestor card the
+      user perceives as the clickable thing (usually a wrapping `<label>`).
+      Resolving to it anyway produces a "correct but confusing" locator: the
+      highlight lands wherever the hidden input happens to render — rarely anywhere
+      near what it visually represents. When this exception applies and no other
+      descendant qualifies, resolution declines and falls back to `el` (step 4) —
+      real-world case in point: the `sdps-card`'s actual radio is `sr-only`, so its
+      css fallback (using the stable-attribute step in §2.7) is what should show,
+      not the radio.
 3. If resolution promotes to a different element than `el`, the UI must surface that
    — highlight the *resolved* element (not just `el`), and label the candidate group
    (e.g. "via nested radio"). Silently handing back a locator for a different element
@@ -48,7 +59,9 @@ Given the picked element `el`:
 descendant is surfaced to the panel via `resolvedVia` on the `element-picked`/
 `candidates-updated` messages, shown as a note plus a secondary highlight box on
 the resolved element ([ui.ts](../src/content/ui.ts),
-[content.ts](../src/content/content.ts)).
+[content.ts](../src/content/content.ts)). The screen-reader-only exception is
+`isScreenReaderOnly` in [locatorEngine.ts](../src/lib/locatorEngine.ts), gating
+`isInteractiveResolutionTarget`.
 
 ## 2. Strategy precedence — once we know the target element
 
@@ -83,6 +96,13 @@ the resolved element ([ui.ts](../src/content/ui.ts),
      [locatorEngine.ts](../src/lib/locatorEngine.ts) filters both categories out of
      `buildCssSelector`'s candidate classes, alongside the existing hash-like
      auto-generated-class filter.
+   - **Status: implemented** — the distinguishing-attribute step (`findStableAttribute`
+     in [locatorEngine.ts](../src/lib/locatorEngine.ts)) tries `name`/`type`/`value`/
+     `href`/`alt`/`title` before classes, skipping `nth-of-type` when one is found.
+     For the `sdps-card` case this turns the css fallback into
+     `sdps-card[value="Save for retirement"]` — short, stable, and (unlike the §1
+     descendant resolution) targets the actual visible card rather than its
+     screen-reader-only radio.
 8. `xpath` — absolute last resort; already flagged brittle by `assessBrittleness`.
 
 ## 3. Explicit non-goals / decisions
