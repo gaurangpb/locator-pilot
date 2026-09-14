@@ -132,6 +132,10 @@ Status legend: `[ ]` open, `[x]` done.
   adds a bounded ancestor/descendant walk (depth 3) on top of this, but only for
   role-less picks — not measured, likely negligible next to the existing sweeps.
   Revisit if it gets reported as laggy on real 40k+ node SPAs.
+- [x] **Chrome Web Store packaging.** Manifest description trimmed to ≤132 chars,
+  public privacy policy page under `docs/`, listing copy and graphic assets in
+  [store/LISTING.md](store/LISTING.md), and `npm run pack` builds `locator-pilot.zip`.
+  Dashboard upload still needs a Chrome Web Store developer account.
 - [x] **Land the in-flight popup → docked-panel refactor as its own commit.** Done
   in [017e94a](https://github.com/gaurangpb/locator-pilot/commit/017e94a) — stale
   by the time this list was written down; no longer an uncommitted diff.

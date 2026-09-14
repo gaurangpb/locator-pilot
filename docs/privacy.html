@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Locator Pilot</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        max-width: 720px;
+        margin: 48px auto;
+        padding: 0 24px 64px;
+        font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #1b2437;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.2;
+        margin-bottom: 8px;
+      }
+      h2 {
+        font-size: 18px;
+        margin-top: 32px;
+      }
+      .meta {
+        color: #5b6578;
+        margin: 0 0 28px;
+      }
+      a {
+        color: #0f766e;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      nav {
+        margin-bottom: 28px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav><a href="./">Locator Pilot</a> · Privacy Policy</nav>
+    <h1>Privacy Policy — Locator Pilot</h1>
+    <p class="meta">Effective date: 13 September 2026</p>
+
+    <p>
+      Locator Pilot is a Chrome extension for generating and looking up Playwright locators on the
+      page you are viewing. It does not collect, store, or transmit any data to any server. There
+      is no backend, no analytics, and no telemetry.
+    </p>
+
+    <h2>What the extension does with page content</h2>
+    <p>
+      When you activate the element picker or paste a locator to find it, Locator Pilot reads the
+      structure (DOM) of the currently active tab, entirely inside your browser, to generate or
+      match locators. This processing happens locally in the page's own content-script context and
+      is never sent anywhere.
+    </p>
+
+    <h2>What is stored</h2>
+    <p>
+      Only your Options preferences (the test-id attribute name, e.g. <code>data-testid</code>, and
+      your C# / TypeScript language choice), saved via <code>chrome.storage.sync</code> so they
+      follow your signed-in Chrome profile across devices. No page content, no locators, and no
+      browsing history are ever saved.
+    </p>
+
+    <h2>Permissions used, and why</h2>
+    <ul>
+      <li>
+        <code>activeTab</code> — lets the extension act on the tab you're currently viewing, only
+        after you click the toolbar icon. No access to any other tab.
+      </li>
+      <li>
+        <code>scripting</code> — lets the extension inject its picker/finder logic into the active
+        tab when you invoke it.
+      </li>
+      <li><code>storage</code> — saves your Options preferences.</li>
+    </ul>
+    <p>
+      Locator Pilot requests no host permissions and does not run on every page by default — it
+      only activates when you click its toolbar icon.
+    </p>
+
+    <h2>Data sharing, sale, and third parties</h2>
+    <p>
+      Locator Pilot does not sell, rent, share, or transfer user data to third parties. It does not
+      use advertising networks, analytics providers, or crash reporters.
+    </p>
+
+    <h2>Children's privacy</h2>
+    <p>
+      Locator Pilot is a developer tool and is not directed at children. It does not knowingly
+      collect any personal information from anyone, including children under 13.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      If this policy changes, the updated version will be posted at the same URL with a new
+      effective date. Because the extension does not collect contact information, we cannot email
+      you; check this page if you want to review the current policy.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions or concerns: open an issue at
+      <a href="https://github.com/gaurangpb/locator-pilot/issues"
+        >github.com/gaurangpb/locator-pilot/issues</a
+      >.
+    </p>
+  </body>
+</html>

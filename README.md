@@ -52,6 +52,11 @@ npm run build
 
 This produces a `dist/` folder — that's what you load into Chrome.
 
+```bash
+npm run pack                # build + zip dist/ as locator-pilot.zip (Chrome Web Store upload)
+npm run store:screenshots   # regenerate store listing screenshots/promo tiles
+```
+
 ## Loading the extension locally
 
 1. Run `npm run build` (or `npm run watch` while developing).
@@ -84,14 +89,20 @@ positioning) — load `dist/` unpacked and try it on a real page as described ab
   reload/navigation and is never written to `chrome.storage` or disk, so it doesn't
   change the no-persistence privacy stance in [PRIVACY.md](./PRIVACY.md).
 
-## Compliance notes for Chrome Web Store submission
+## Chrome Web Store
 
-- Manifest V3, no remote code execution — everything is bundled locally.
+The listing is ready to submit. Copy-paste fields, privacy answers, and asset paths
+are in [store/LISTING.md](./store/LISTING.md).
+
+- Manifest V3, no remote code — everything is bundled locally and not minified.
 - Minimal permissions: `activeTab`, `scripting`, `storage`. No `host_permissions`.
-- Privacy policy: [PRIVACY.md](./PRIVACY.md) — host this on a public URL for the store
-  listing (e.g. via GitHub Pages or the repo's raw file).
-- Single, clearly-stated purpose (element locator generation/lookup for test
-  automation) — avoid bolting on unrelated features in this listing.
+- Privacy policy (public URL): https://gaurangpb.github.io/locator-pilot/privacy.html
+  (source: [PRIVACY.md](./PRIVACY.md) / [docs/privacy.html](./docs/privacy.html)).
+- Upload `locator-pilot.zip` from `npm run pack`. `manifest.json` is at the zip root.
+- Single purpose: element locator generation/lookup for Playwright test automation.
+
+Publishing still requires a Chrome Web Store developer account (one-time $5, 2-Step
+Verification on). You cannot finish the dashboard upload from this repo alone.
 
 ## License
 

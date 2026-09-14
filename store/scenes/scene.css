@@ -1,0 +1,204 @@
+/* Demo page chrome for store screenshots. Panel styles come from overlay.css. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #eef1f6;
+  font: 15px/1.45 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  color: #152033;
+}
+
+.demo-app {
+  height: 100%;
+  padding-right: 380px;
+  box-sizing: border-box;
+}
+
+.demo-topbar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 28px;
+  background: #0f1424;
+  color: #e8ecf3;
+}
+
+.demo-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.demo-brand {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.demo-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+  color: #9aa3b8;
+  font-size: 13px;
+}
+
+.demo-nav strong {
+  color: #2dd4af;
+  font-weight: 600;
+}
+
+.demo-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: calc(100% - 56px);
+}
+
+.demo-side {
+  background: #fff;
+  border-right: 1px solid #dce2ec;
+  padding: 22px 16px;
+  color: #5b6578;
+}
+
+.demo-side h2 {
+  margin: 0 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a93a6;
+}
+
+.demo-side a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+
+.demo-side a.active {
+  background: #e8faf5;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.demo-main {
+  padding: 32px 40px;
+  overflow: hidden;
+}
+
+.demo-main h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+
+.demo-sub {
+  margin: 0 0 24px;
+  color: #5b6578;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #dce2ec;
+  border-radius: 12px;
+  padding: 22px 24px 24px;
+  max-width: 560px;
+  box-shadow: 0 10px 30px rgba(15, 20, 36, 0.06);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #3d475c;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c9d2e0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  background: #f8fafc;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 650;
+  cursor: default;
+}
+
+.btn-primary {
+  background: #0f766e;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: #eef1f6;
+  color: #3d475c;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #dce2ec;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e6ebf3;
+}
+
+.table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8a93a6;
+  background: #f7f9fc;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.linkish {
+  color: #0f766e;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.lp-root {
+  font: 13px/1.45 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Store shots need the full locator visible; the live panel scrolls instead. */
+.lp-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Locator Pilot — C# locators</title>
+    <link rel="stylesheet" href="/src/content/overlay.css" />
+    <link rel="stylesheet" href="/store/scenes/scene.css" />
+  </head>
+  <body>
+    <div class="demo-app">
+      <header class="demo-topbar">
+        <img class="demo-logo" src="/icons/icon128.png" alt="" />
+        <span class="demo-brand">Harbor Bank</span>
+        <nav class="demo-nav"><span>Accounts</span><strong>Transfers</strong><span>Payees</span></nav>
+      </header>
+      <div class="demo-shell">
+        <aside class="demo-side">
+          <h2>Move money</h2>
+          <a href="#">Between accounts</a>
+          <a class="active" href="#">Wire transfer</a>
+          <a href="#">Scheduled</a>
+        </aside>
+        <main class="demo-main">
+          <h1>Send a wire</h1>
+          <p class="demo-sub">Same pick, C# output — the language toggle remembers your last choice.</p>
+          <form class="card">
+            <div class="field">
+              <label for="from">From account</label>
+              <select id="from"><option>Checking ••4821</option></select>
+            </div>
+            <div class="field">
+              <label for="to">Recipient</label>
+              <input id="to" value="Jordan Hale — routing 021000021" />
+            </div>
+            <div class="field">
+              <label for="amount">Amount</label>
+              <input id="amount" value="1,250.00" />
+            </div>
+            <div class="actions">
+              <button class="btn btn-ghost" type="button">Save draft</button>
+              <button class="btn btn-primary" id="submit-btn" type="button">Submit transfer</button>
+            </div>
+          </form>
+        </main>
+      </div>
+    </div>
+
+    <div class="lp-root">
+      <div class="lp-highlight" id="hl"></div>
+      <aside class="lp-dock" role="dialog" aria-label="Locator Pilot">
+        <header class="lp-dock-header">
+          <div class="lp-dock-heading">
+            <span class="lp-dock-title">Locator Pilot</span>
+            <button class="lp-link-btn" type="button">Options</button>
+          </div>
+          <div class="lp-dock-header-actions">
+            <div class="lp-lang-toggle" role="group">
+              <button class="lp-lang-btn" type="button" aria-pressed="true">C#</button>
+              <button class="lp-lang-btn" type="button" aria-pressed="false">TS</button>
+            </div>
+            <button class="lp-close-btn" type="button">✕</button>
+          </div>
+        </header>
+        <section class="lp-section">
+          <button class="lp-primary-btn" type="button">Pick an element</button>
+          <p class="lp-hint">Hover the page and click an element. The panel stays open.</p>
+        </section>
+        <section class="lp-section">
+          <label class="lp-label">Paste a locator to find it on the page</label>
+          <textarea class="lp-textarea" rows="3"></textarea>
+          <button class="lp-primary-btn" type="button">Find on page</button>
+        </section>
+        <section class="lp-section lp-section-results">
+          <h2 class="lp-results-heading">Results</h2>
+          <div class="lp-results">
+            <div class="lp-candidate">
+              <div class="lp-candidate-meta">
+                <span class="lp-badge lp-badge-strategy">Role</span>
+                <span class="lp-badge lp-badge-robust">robust</span>
+                <span class="lp-match-count">1 match</span>
+              </div>
+              <label class="lp-exact-toggle"><input type="checkbox" /> Exact match</label>
+              <div class="lp-code-row">
+                <code class="lp-code">Page.GetByRole(AriaRole.Button, new() { Name = "Submit transfer" })</code>
+                <button class="lp-copy-btn" type="button">Copy</button>
+              </div>
+            </div>
+            <div class="lp-candidate">
+              <div class="lp-candidate-meta">
+                <span class="lp-badge lp-badge-strategy">Text</span>
+                <span class="lp-badge lp-badge-robust">robust</span>
+                <span class="lp-match-count">1 match</span>
+              </div>
+              <label class="lp-exact-toggle"><input type="checkbox" /> Exact match</label>
+              <div class="lp-code-row">
+                <code class="lp-code">Page.GetByText("Submit transfer")</code>
+                <button class="lp-copy-btn" type="button">Copy</button>
+              </div>
+            </div>
+            <div class="lp-candidate">
+              <div class="lp-candidate-meta">
+                <span class="lp-badge lp-badge-strategy">Test ID</span>
+                <span class="lp-badge lp-badge-robust">robust</span>
+                <span class="lp-match-count">1 match</span>
+              </div>
+              <div class="lp-code-row">
+                <code class="lp-code">Page.GetByTestId("submit-transfer")</code>
+                <button class="lp-copy-btn" type="button">Copy</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="lp-section lp-section-history">
+          <details class="lp-history-details">
+            <summary class="lp-history-toggle">History (1)</summary>
+          </details>
+        </section>
+      </aside>
+    </div>
+    <script>
+      const btn = document.getElementById("submit-btn");
+      const hl = document.getElementById("hl");
+      const r = btn.getBoundingClientRect();
+      hl.style.top = r.top - 4 + "px";
+      hl.style.left = r.left - 4 + "px";
+      hl.style.width = r.width + 8 + "px";
+      hl.style.height = r.height + 8 + "px";
+    </script>
+  </body>
+</html>

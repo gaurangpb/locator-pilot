@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Locator Pilot — paste and find</title>
+    <link rel="stylesheet" href="/src/content/overlay.css" />
+    <link rel="stylesheet" href="/store/scenes/scene.css" />
+  </head>
+  <body>
+    <div class="demo-app">
+      <header class="demo-topbar">
+        <img class="demo-logo" src="/icons/icon128.png" alt="" />
+        <span class="demo-brand">Harbor Bank</span>
+        <nav class="demo-nav"><span>Accounts</span><span>Transfers</span><strong>Payees</strong></nav>
+      </header>
+      <div class="demo-shell">
+        <aside class="demo-side">
+          <h2>Payees</h2>
+          <a class="active" href="#">Directory</a>
+          <a href="#">Pending</a>
+        </aside>
+        <main class="demo-main">
+          <h1>Payee directory</h1>
+          <p class="demo-sub">Paste a locator to highlight every match on the current page.</p>
+          <table class="table">
+            <thead>
+              <tr><th>Payee</th><th>Account</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Riverside Utilities</td>
+                <td>••1044</td>
+                <td><a class="linkish find-target" href="#">Edit</a></td>
+              </tr>
+              <tr>
+                <td>North End Credit Union</td>
+                <td>••8820</td>
+                <td><a class="linkish find-target" href="#">Edit</a></td>
+              </tr>
+              <tr>
+                <td>Harbor Savings</td>
+                <td>••3319</td>
+                <td><a class="linkish find-target" href="#">Edit</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </main>
+      </div>
+    </div>
+
+    <div class="lp-root">
+      <div class="lp-highlight" data-hl></div>
+      <div class="lp-highlight" data-hl></div>
+      <div class="lp-highlight" data-hl></div>
+      <aside class="lp-dock" role="dialog" aria-label="Locator Pilot">
+        <header class="lp-dock-header">
+          <div class="lp-dock-heading">
+            <span class="lp-dock-title">Locator Pilot</span>
+            <button class="lp-link-btn" type="button">Options</button>
+          </div>
+          <div class="lp-dock-header-actions">
+            <div class="lp-lang-toggle" role="group">
+              <button class="lp-lang-btn" type="button" aria-pressed="false">C#</button>
+              <button class="lp-lang-btn" type="button" aria-pressed="true">TS</button>
+            </div>
+            <button class="lp-close-btn" type="button">✕</button>
+          </div>
+        </header>
+        <section class="lp-section">
+          <button class="lp-primary-btn" type="button">Pick an element</button>
+          <p class="lp-hint">Hover the page and click an element. The panel stays open.</p>
+        </section>
+        <section class="lp-section">
+          <label class="lp-label">Paste a locator to find it on the page</label>
+          <textarea class="lp-textarea" rows="3">page.getByRole('link', { name: 'Edit' })</textarea>
+          <button class="lp-primary-btn" type="button">Find on page</button>
+          <p class="lp-find-result lp-ok">Found 3 matches</p>
+        </section>
+        <section class="lp-section lp-section-results">
+          <h2 class="lp-results-heading">Results</h2>
+          <div class="lp-results">
+            <p class="lp-empty">Pick an element to see ranked locators here.</p>
+          </div>
+        </section>
+        <section class="lp-section lp-section-history">
+          <details class="lp-history-details">
+            <summary class="lp-history-toggle">History (0)</summary>
+          </details>
+        </section>
+      </aside>
+    </div>
+    <script>
+      const boxes = document.querySelectorAll("[data-hl]");
+      const targets = document.querySelectorAll(".find-target");
+      targets.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const box = boxes[i];
+        box.style.top = r.top - 4 + "px";
+        box.style.left = r.left - 4 + "px";
+        box.style.width = r.width + 8 + "px";
+        box.style.height = r.height + 8 + "px";
+      });
+    </script>
+  </body>
+</html>
