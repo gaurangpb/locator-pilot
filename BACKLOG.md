@@ -106,7 +106,45 @@ Status legend: `[ ]` open, `[x]` done.
   page reload) rather than `chrome.storage`-backed, to avoid contradicting
   [PRIVACY.md](PRIVACY.md)'s "nothing persisted" stance — see README.md.
 
+## P1 — Findings from the 2026-11-11 project review
+
+- [ ] **A unique candidate can be cut from the panel.** `buildCandidateList` in
+  [locatorEngine.ts](src/lib/locatorEngine.ts) takes the first `MAX_CANDIDATES` (3)
+  specs in precedence order without looking at uniqueness. An input with a role, a
+  label and a placeholder never shows its test-id or CSS candidate, even when the
+  first three all match several elements. Fill the slots preferring unique
+  candidates (keeping precedence order among them) and update
+  [docs/LOCATOR_STRATEGY.md](docs/LOCATOR_STRATEGY.md) to match.
+- [ ] **`getByLabel` matching is narrower than Playwright's.** `matchByLabel` in
+  [matcher.ts](src/lib/matcher.ts) only considers `<label>` elements; Playwright
+  also matches `aria-label` and `aria-labelledby`. Paste-and-find reports 0 matches
+  for label locators that work in a real test.
+- [ ] **Chained locators and regex arguments are detected but not evaluated.** The
+  parser ([parser.ts](src/lib/parser.ts)) flags `.filter()`/`.nth()`/`.first()`/
+  nested `getBy…` as `chained` and rejects regex arguments with an error, but
+  "Find on page" still highlights only the base locator. Evaluating them is the
+  biggest remaining gap for paste-and-find on real suites.
+- [ ] **Frame-to-top messages are unauthenticated.** `publishToTop` in
+  [content.ts](src/content/content.ts) posts with target origin `"*"`, and the top
+  frame accepts any message carrying `PAGE_CHANNEL` (`isPageEnvelope` in
+  [messages.ts](src/lib/messages.ts)). A page can forge panel content or read
+  locator text sent from an embedded frame. Low impact (the UI never uses
+  `innerHTML`), but worth validating `event.source`/shape or relaying through the
+  background worker instead.
+
 ## P2 — Hardening / code quality
+
+- [ ] **No CI.** The typecheck → test → build sequence in [CLAUDE.md](CLAUDE.md)
+  only runs by hand. Add a GitHub Actions workflow for it, plus a `.gitattributes`
+  to stop the LF/CRLF warnings on Windows checkouts.
+- [ ] **No release process.** No git tags or changelog, and the version lives in
+  both `package.json` and `manifest.json` with nothing keeping them in sync.
+- [ ] **Dev dependencies are several majors behind, with 7 `npm audit` findings**
+  (2 critical, via vitest's tinypool). Nothing ships in the extension, but the fix
+  needs a major vitest upgrade (2 → 5); jsdom and esbuild are also behind.
+- [ ] **[content.ts](src/content/content.ts) is one 449-line closure** mixing
+  picker, highlight, find, live re-check and history state, with no tests. Split it
+  into modules once e2e coverage (below) exists to guard the refactor.
 
 - [ ] **`buildCssSelector`'s uniqueness check is blind to shadow DOM.** It validates
   candidate selectors with plain `doc.querySelectorAll`, which can't see into
@@ -115,9 +153,11 @@ Status legend: `[ ]` open, `[x]` done.
 - [ ] **`<img alt="">` still gets role `"img"`.** An empty `alt` marks a decorative
   image (excluded from the a11y tree) but `getImplicitRole` doesn't account for it
   — same root cause as the P0 visibility bug.
-- [ ] **Zero test coverage on the riskiest code.** `matcher.ts`, `domQuery.ts`, and
-  `accessibility.ts` (where the shadow-DOM/XPath-piercing bugs above live) have no
-  tests at all. Prioritize these over more `codegen`/`brittleness` coverage.
+- [ ] **Thin test coverage on the riskiest code.** `matcher.ts` (8 tests) and
+  `domQuery.ts` (3 tests) now cover only the P0 visibility/XPath fixes and the
+  alt/title strategies; label, placeholder, text and test-id matching are untested,
+  and `accessibility.ts` has no direct tests at all. Prioritize these over more
+  `codegen`/`brittleness` coverage.
 - [ ] **No Playwright-based e2e tests of the extension itself.** Ironic for a
   Playwright-locator tool — loading the built `dist/` as an unpacked extension via
   `launchPersistentContext` would catch picker/highlight/panel regressions that
