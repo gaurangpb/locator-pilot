@@ -108,29 +108,40 @@ Status legend: `[ ]` open, `[x]` done.
 
 ## P1 — Findings from the 2026-11-11 project review
 
-- [ ] **A unique candidate can be cut from the panel.** `buildCandidateList` in
-  [locatorEngine.ts](src/lib/locatorEngine.ts) takes the first `MAX_CANDIDATES` (3)
-  specs in precedence order without looking at uniqueness. An input with a role, a
-  label and a placeholder never shows its test-id or CSS candidate, even when the
-  first three all match several elements. Fill the slots preferring unique
-  candidates (keeping precedence order among them) and update
-  [docs/LOCATOR_STRATEGY.md](docs/LOCATOR_STRATEGY.md) to match.
-- [ ] **`getByLabel` matching is narrower than Playwright's.** `matchByLabel` in
-  [matcher.ts](src/lib/matcher.ts) only considers `<label>` elements; Playwright
-  also matches `aria-label` and `aria-labelledby`. Paste-and-find reports 0 matches
-  for label locators that work in a real test.
-- [ ] **Chained locators and regex arguments are detected but not evaluated.** The
-  parser ([parser.ts](src/lib/parser.ts)) flags `.filter()`/`.nth()`/`.first()`/
-  nested `getBy…` as `chained` and rejects regex arguments with an error, but
-  "Find on page" still highlights only the base locator. Evaluating them is the
-  biggest remaining gap for paste-and-find on real suites.
-- [ ] **Frame-to-top messages are unauthenticated.** `publishToTop` in
-  [content.ts](src/content/content.ts) posts with target origin `"*"`, and the top
-  frame accepts any message carrying `PAGE_CHANNEL` (`isPageEnvelope` in
-  [messages.ts](src/lib/messages.ts)). A page can forge panel content or read
-  locator text sent from an embedded frame. Low impact (the UI never uses
-  `innerHTML`), but worth validating `event.source`/shape or relaying through the
-  background worker instead.
+- [x] **A unique candidate can be cut from the panel.** `buildCandidateList` in
+  [locatorEngine.ts](src/lib/locatorEngine.ts) took the first `MAX_CANDIDATES` (3)
+  specs in precedence order without looking at uniqueness, so an input with a role,
+  a label and a placeholder never showed its test-id or CSS candidate, even when
+  the first three all matched several elements. It now fills the slots with unique
+  candidates first (in precedence order) and gives only the leftover slots to
+  non-unique ones — documented as "Filling the panel" in
+  [docs/LOCATOR_STRATEGY.md §2](docs/LOCATOR_STRATEGY.md#filling-the-panel).
+- [x] **`getByLabel` matching is narrower than Playwright's.** `matchByLabel` in
+  [matcher.ts](src/lib/matcher.ts) only considered `<label>` elements; it now also
+  matches `aria-label` and `aria-labelledby` (multiple ids joined), returning each
+  element once in document order.
+- [x] **Chained locators and regex arguments are detected but not evaluated.**
+  [parser.ts](src/lib/parser.ts) now parses a pasted expression into a step
+  pipeline (`ParseResult.query`) and the new [query.ts](src/lib/query.ts)
+  `evaluateQuery` runs it for "Find on page": nested `getBy…`/`locator()` (scoped to
+  the previous matches, through shadow roots), `.filter({ hasText, hasNotText, has,
+  hasNot })`, `locator(sel, { hasText… })`, `.first()`/`.last()`/`.nth()` (and C#'s
+  `.First`/`.Last`), `.and()`/`.or()`. Regex arguments — JS literals and .NET
+  `new Regex(…, RegexOptions…)` — are evaluated via an optional `pattern` on
+  `matchLocator` ([matcher.ts](src/lib/matcher.ts)). Trailing actions (`.click()`)
+  are skipped quietly; anything that can't be evaluated (a variable as `has`, …) is
+  named in the find result rather than dropped silently. Known gaps: `frameLocator`/
+  `contentFrame` hops are dropped (every frame is searched instead), and chained
+  CSS/XPath is matched document-wide then scoped, so a leading `>`/`./` relative
+  selector isn't supported.
+- [x] **Frame-to-top messages are unauthenticated.** Sub-frame results no longer use
+  `window.postMessage` at all: `publishToTop` in
+  [content.ts](src/content/content.ts) sends a `relay-to-top` message
+  ([messages.ts](src/lib/messages.ts)) to the background worker, which forwards it
+  to the tab's top frame only (`frameId: 0`,
+  [background.ts](src/background/background.ts)). The page can neither read locator
+  text from an embedded frame nor forge panel content; `PAGE_CHANNEL`/
+  `isPageEnvelope` are gone.
 
 ## P2 — Hardening / code quality
 

@@ -62,3 +62,41 @@ describe("matchLocator altText/title strategies", () => {
     expect(matchLocator(doc, { strategy: "altText", text: "Company logo, small", exact: true })).toHaveLength(1);
   });
 });
+
+describe("matchLocator label strategy — Playwright's three labelling mechanisms", () => {
+  const label = (text: string, exact = false) => ({ strategy: "label" as const, text, exact });
+  const ids = (elements: Element[]): string[] => elements.map((el) => el.id);
+
+  it("matches a <label for> and a wrapping <label>", () => {
+    const doc = setBody(`
+      <label for="email">Email</label><input id="email" />
+      <label>Phone <input id="phone" /></label>
+    `);
+    expect(ids(matchLocator(doc, label("Email")))).toEqual(["email"]);
+    expect(ids(matchLocator(doc, label("Phone")))).toEqual(["phone"]);
+  });
+
+  it("matches aria-label", () => {
+    const doc = setBody(`<input id="q" aria-label="Search products" /><button id="x" aria-label="Close">x</button>`);
+    expect(ids(matchLocator(doc, label("search")))).toEqual(["q"]);
+    expect(ids(matchLocator(doc, label("Close", true)))).toEqual(["x"]);
+    expect(matchLocator(doc, label("Clos", true))).toHaveLength(0);
+  });
+
+  it("matches aria-labelledby, joining multiple references", () => {
+    const doc = setBody(`
+      <span id="a">Billing</span><span id="b">address</span>
+      <input id="addr" aria-labelledby="a b" />
+      <input id="dangling" aria-labelledby="missing" />
+    `);
+    expect(ids(matchLocator(doc, label("Billing address")))).toEqual(["addr"]);
+  });
+
+  it("returns each element once, in document order, when several mechanisms match", () => {
+    const doc = setBody(`
+      <input id="first" aria-label="Name" />
+      <label for="second">Name</label><input id="second" aria-label="Name" />
+    `);
+    expect(ids(matchLocator(doc, label("Name")))).toEqual(["first", "second"]);
+  });
+});

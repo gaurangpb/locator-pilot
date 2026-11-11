@@ -115,8 +115,8 @@ describe("generateCandidates", () => {
     const el = doc.querySelector("img")!;
     const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
 
-    const roleCandidate = candidates.find((c) => c.spec.strategy === "role");
-    expect(roleCandidate?.matchCount).toBe(0);
+    // The 0-match role candidate loses its slot to the unique ones below it.
+    expect(candidates.find((c) => c.spec.strategy === "role")).toBeUndefined();
 
     const testIdCandidate = candidates.find((c) => c.spec.strategy === "testId");
     expect(testIdCandidate?.matchCount).toBe(1);
@@ -371,5 +371,44 @@ describe("pickCandidates — interactive element resolution (docs/LOCATOR_STRATE
 
     expect(result.resolvedVia).toBe("descendant");
     expect(result.target.tagName.toLowerCase()).toBe("input");
+  });
+});
+
+describe("candidate slots prefer unique locators", () => {
+  const options = { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE };
+
+  it("surfaces a unique test-id over ambiguous higher-precedence candidates", () => {
+    const doc = setBody(`
+      <label>Search <input placeholder="Search" /></label>
+      <label>Search <input id="target" placeholder="Search" data-testid="header-search" /></label>
+    `);
+    const candidates = generateCandidates(doc.getElementById("target")!, options, doc);
+    const strategies = candidates.map((c) => c.spec.strategy);
+
+    // role, label and placeholder all match both inputs; only the three
+    // lower-precedence strategies resolve to exactly this one.
+    expect(strategies).toEqual(["testId", "css", "xpath"]);
+    expect(candidates.every((c) => c.isUnique)).toBe(true);
+  });
+
+  it("gives leftover slots to non-unique candidates, after the unique ones", () => {
+    // Two identical buttons with no id/test-id: text and role match both, css and
+    // xpath (positional) are unique.
+    const doc = setBody(`<div><button>Save</button><button id="target">Save</button></div>`);
+    doc.getElementById("target")!.removeAttribute("id");
+    const target = doc.querySelectorAll("button")[1]!;
+    const candidates = generateCandidates(target, options, doc);
+
+    expect(candidates.map((c) => c.spec.strategy)).toEqual(["css", "xpath", "role"]);
+    expect(candidates.map((c) => c.isUnique)).toEqual([true, true, false]);
+  });
+
+  it("keeps plain precedence order when the top candidates are already unique", () => {
+    const doc = setBody(`
+      <label for="email">Email address</label>
+      <input id="email" placeholder="you@example.com" data-testid="email" />
+    `);
+    const candidates = generateCandidates(doc.getElementById("email")!, options, doc);
+    expect(candidates.map((c) => c.spec.strategy)).toEqual(["role", "label", "placeholder"]);
   });
 });
