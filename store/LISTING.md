@@ -3,6 +3,10 @@
 Use this when filling out [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 The upload ZIP is `locator-pilot.zip` at the repo root (`npm run pack`).
 
+Item ID: `mlbbeliaikkmocgelpindnnbjdgkpjje`  
+Dashboard status as of 2026-09-13: **Pending review**  
+Store URL (goes live after approval): https://chromewebstore.google.com/detail/mlbbeliaikkmocgelpindnnbjdgkpjje
+
 Privacy policy URL (after GitHub Pages is live):
 
 `https://gaurangpb.github.io/locator-pilot/privacy.html`
