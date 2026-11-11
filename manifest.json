@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Locator Pilot — Playwright Element Locators",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pick any element and get a Playwright locator in C# or TypeScript. Paste a locator to find it on the page.",
   "homepage_url": "https://github.com/gaurangpb/locator-pilot",
   "permissions": ["activeTab", "scripting", "storage"],

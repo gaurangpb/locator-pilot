@@ -5,6 +5,8 @@ Web Store listing. Releasing is described in [RELEASING.md](RELEASING.md).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-11
+
 ### Fixed
 - Pick history and the live match-count re-check silently failed on plain `http://`
   pages (no `crypto.randomUUID` outside secure contexts).

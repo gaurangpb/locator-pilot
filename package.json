@@ -1,6 +1,6 @@
 {
   "name": "locator-pilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pick any element and get a ready-to-use Playwright locator in C# or TypeScript. Paste a locator back in to find it on the page.",
   "private": true,
   "type": "module",
