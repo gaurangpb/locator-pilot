@@ -1,16 +1,9 @@
 import { addHistoryEntry, removeHistoryEntry, type HistoryEntry } from "../lib/history";
 import { pickCandidates, refreshCandidates, withExact } from "../lib/locatorEngine";
-import { matchLocator } from "../lib/matcher";
-import {
-  PAGE_CHANNEL,
-  isPageEnvelope,
-  type BroadcastMessage,
-  type ContentResponse,
-  type ExtensionMessage,
-  type FindResultMessage,
-} from "../lib/messages";
+import type { BroadcastMessage, ContentResponse, ExtensionMessage, FindResultMessage } from "../lib/messages";
 import { deepElementFromPoint } from "../lib/domQuery";
 import { parseLocator } from "../lib/parser";
+import { evaluateQuery } from "../lib/query";
 import { saveLanguage } from "../lib/settings";
 import type { CodeLanguage, LocatorCandidate, ResolutionKind } from "../lib/types";
 import overlayCss from "./overlay.css";
@@ -55,7 +48,7 @@ function main(): void {
   let findWaitTimer: number | undefined;
   let findTotal = 0;
   let findGuessed = false;
-  let findChained = false;
+  let findIgnored: string[] = [];
   let findError: string | undefined;
   const trackedHighlights: { box: HTMLElement; el: Element }[] = [];
 
@@ -89,7 +82,9 @@ function main(): void {
       handleContentResponse(message);
       return;
     }
-    window.top?.postMessage({ source: PAGE_CHANNEL, message }, "*");
+    // Via the background worker, not window.postMessage — the page must not be
+    // able to read locator text sent from an embedded frame, or forge panel content.
+    void chrome.runtime.sendMessage({ type: "relay-to-top", message });
   }
 
   function stopLiveRecheck(): void {
@@ -279,8 +274,8 @@ function main(): void {
 
     let response: FindResultMessage;
     try {
-      const { spec, guessed, chained } = parseLocator(raw, testIdAttribute);
-      const matches = matchLocator(document, spec);
+      const { query, guessed, ignoredCalls } = parseLocator(raw, testIdAttribute);
+      const matches = evaluateQuery(document, query);
       for (const match of matches) {
         showHighlightOn(match, matches.length > 1);
       }
@@ -288,13 +283,13 @@ function main(): void {
         matches[0]?.scrollIntoView({ behavior: "smooth", block: "center" });
         clearHighlightsTimeout = window.setTimeout(clearFindHighlights, 5000);
       }
-      response = { type: "find-result", matchCount: matches.length, guessed, chained };
+      response = { type: "find-result", matchCount: matches.length, guessed, ignoredCalls };
     } catch (err) {
       response = {
         type: "find-result",
         matchCount: 0,
         guessed: false,
-        chained: false,
+        ignoredCalls: [],
         error: err instanceof Error ? err.message : String(err),
       };
     }
@@ -321,7 +316,7 @@ function main(): void {
           }
           findTotal = 0;
           findGuessed = false;
-          findChained = false;
+          findIgnored = [];
           findError = undefined;
           panelApi?.setFindResult("Searching…", "");
           if (findWaitTimer !== undefined) window.clearTimeout(findWaitTimer);
@@ -332,12 +327,13 @@ function main(): void {
               return;
             }
             const guessNote = findGuessed ? " (interpreted as a raw selector)" : "";
-            const chainNote = findChained
-              ? " — chained calls like .filter()/.nth()/.first() were ignored; showing all matches for the base locator"
-              : "";
-            const note = `${guessNote}${chainNote}`;
+            const ignoredNote =
+              findIgnored.length > 0
+                ? ` — couldn't evaluate ${findIgnored.join(", ")}; showing matches without it`
+                : "";
+            const note = `${guessNote}${ignoredNote}`;
             if (findTotal === 0) panelApi?.setFindResult(`No matches found on this page${note}.`, "error");
-            else if (findTotal === 1 && !findChained)
+            else if (findTotal === 1 && findIgnored.length === 0)
               panelApi?.setFindResult(`Found 1 match — highlighted on the page${note}.`, "ok");
             else panelApi?.setFindResult(`Found ${findTotal} matches — highlighted on the page${note}.`, "warn");
           }, 400);
@@ -409,7 +405,9 @@ function main(): void {
     }
     findTotal += message.matchCount;
     findGuessed = findGuessed || message.guessed;
-    findChained = findChained || message.chained;
+    for (const call of message.ignoredCalls) {
+      if (!findIgnored.includes(call)) findIgnored.push(call);
+    }
   }
 
   function onCandidatesUpdated(candidates: LocatorCandidate[], resolvedVia: ResolutionKind | null): void {
@@ -417,13 +415,15 @@ function main(): void {
     panelApi?.setCandidates(candidates, resolvedVia);
   }
 
-  window.addEventListener("message", (event: MessageEvent) => {
-    if (!isTopFrame || !isPageEnvelope(event.data)) return;
-    handleContentResponse(event.data.message);
-  });
-
   chrome.runtime.onMessage.addListener((message: ExtensionMessage) => {
-    if (message.type === "toggle-panel") {
+    if (
+      message.type === "element-picked" ||
+      message.type === "find-result" ||
+      message.type === "candidates-updated"
+    ) {
+      // A sub-frame's result, relayed by the background worker to this (top) frame.
+      if (isTopFrame) handleContentResponse(message);
+    } else if (message.type === "toggle-panel") {
       pendingTestIdAttribute = message.testIdAttribute;
       pendingLanguage = message.language;
       if (!isTopFrame) return;

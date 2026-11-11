@@ -105,6 +105,24 @@ the resolved element ([ui.ts](../src/content/ui.ts),
      screen-reader-only radio.
 8. `xpath` — absolute last resort; already flagged brittle by `assessBrittleness`.
 
+### Filling the panel
+
+The panel shows at most three candidates (`MAX_CANDIDATES`). The precedence above
+decides the order *within* two groups, but uniqueness decides which group goes first:
+
+1. Candidates that resolve to **exactly one** element, in precedence order.
+2. Only if slots remain: non-unique candidates (0 or 2+ matches), in precedence order.
+
+A locator that matches several elements — or none, e.g. a role candidate for an
+`aria-hidden` element — isn't usable as-is, so it must never push a working one off
+the panel. Without this rule an input with a role, a label and a placeholder would
+never show its test-id or css candidate, even when the first three were all
+ambiguous. When the top-precedence candidates are already unique (the common case)
+the result is identical to a plain precedence cut.
+
+**Status: implemented** — `buildCandidateList` in
+[locatorEngine.ts](../src/lib/locatorEngine.ts).
+
 ## 3. Explicit non-goals / decisions
 
 - We do **not** rank `testId` above `role`, even though some teams treat test-ids as

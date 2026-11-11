@@ -106,7 +106,56 @@ Status legend: `[ ]` open, `[x]` done.
   page reload) rather than `chrome.storage`-backed, to avoid contradicting
   [PRIVACY.md](PRIVACY.md)'s "nothing persisted" stance — see README.md.
 
+## P1 — Findings from the 2026-11-11 project review
+
+- [x] **A unique candidate can be cut from the panel.** `buildCandidateList` in
+  [locatorEngine.ts](src/lib/locatorEngine.ts) took the first `MAX_CANDIDATES` (3)
+  specs in precedence order without looking at uniqueness, so an input with a role,
+  a label and a placeholder never showed its test-id or CSS candidate, even when
+  the first three all matched several elements. It now fills the slots with unique
+  candidates first (in precedence order) and gives only the leftover slots to
+  non-unique ones — documented as "Filling the panel" in
+  [docs/LOCATOR_STRATEGY.md §2](docs/LOCATOR_STRATEGY.md#filling-the-panel).
+- [x] **`getByLabel` matching is narrower than Playwright's.** `matchByLabel` in
+  [matcher.ts](src/lib/matcher.ts) only considered `<label>` elements; it now also
+  matches `aria-label` and `aria-labelledby` (multiple ids joined), returning each
+  element once in document order.
+- [x] **Chained locators and regex arguments are detected but not evaluated.**
+  [parser.ts](src/lib/parser.ts) now parses a pasted expression into a step
+  pipeline (`ParseResult.query`) and the new [query.ts](src/lib/query.ts)
+  `evaluateQuery` runs it for "Find on page": nested `getBy…`/`locator()` (scoped to
+  the previous matches, through shadow roots), `.filter({ hasText, hasNotText, has,
+  hasNot })`, `locator(sel, { hasText… })`, `.first()`/`.last()`/`.nth()` (and C#'s
+  `.First`/`.Last`), `.and()`/`.or()`. Regex arguments — JS literals and .NET
+  `new Regex(…, RegexOptions…)` — are evaluated via an optional `pattern` on
+  `matchLocator` ([matcher.ts](src/lib/matcher.ts)). Trailing actions (`.click()`)
+  are skipped quietly; anything that can't be evaluated (a variable as `has`, …) is
+  named in the find result rather than dropped silently. Known gaps: `frameLocator`/
+  `contentFrame` hops are dropped (every frame is searched instead), and chained
+  CSS/XPath is matched document-wide then scoped, so a leading `>`/`./` relative
+  selector isn't supported.
+- [x] **Frame-to-top messages are unauthenticated.** Sub-frame results no longer use
+  `window.postMessage` at all: `publishToTop` in
+  [content.ts](src/content/content.ts) sends a `relay-to-top` message
+  ([messages.ts](src/lib/messages.ts)) to the background worker, which forwards it
+  to the tab's top frame only (`frameId: 0`,
+  [background.ts](src/background/background.ts)). The page can neither read locator
+  text from an embedded frame nor forge panel content; `PAGE_CHANNEL`/
+  `isPageEnvelope` are gone.
+
 ## P2 — Hardening / code quality
+
+- [ ] **No CI.** The typecheck → test → build sequence in [CLAUDE.md](CLAUDE.md)
+  only runs by hand. Add a GitHub Actions workflow for it, plus a `.gitattributes`
+  to stop the LF/CRLF warnings on Windows checkouts.
+- [ ] **No release process.** No git tags or changelog, and the version lives in
+  both `package.json` and `manifest.json` with nothing keeping them in sync.
+- [ ] **Dev dependencies are several majors behind, with 7 `npm audit` findings**
+  (2 critical, via vitest's tinypool). Nothing ships in the extension, but the fix
+  needs a major vitest upgrade (2 → 5); jsdom and esbuild are also behind.
+- [ ] **[content.ts](src/content/content.ts) is one 449-line closure** mixing
+  picker, highlight, find, live re-check and history state, with no tests. Split it
+  into modules once e2e coverage (below) exists to guard the refactor.
 
 - [ ] **`buildCssSelector`'s uniqueness check is blind to shadow DOM.** It validates
   candidate selectors with plain `doc.querySelectorAll`, which can't see into
@@ -115,9 +164,11 @@ Status legend: `[ ]` open, `[x]` done.
 - [ ] **`<img alt="">` still gets role `"img"`.** An empty `alt` marks a decorative
   image (excluded from the a11y tree) but `getImplicitRole` doesn't account for it
   — same root cause as the P0 visibility bug.
-- [ ] **Zero test coverage on the riskiest code.** `matcher.ts`, `domQuery.ts`, and
-  `accessibility.ts` (where the shadow-DOM/XPath-piercing bugs above live) have no
-  tests at all. Prioritize these over more `codegen`/`brittleness` coverage.
+- [ ] **Thin test coverage on the riskiest code.** `matcher.ts` (8 tests) and
+  `domQuery.ts` (3 tests) now cover only the P0 visibility/XPath fixes and the
+  alt/title strategies; label, placeholder, text and test-id matching are untested,
+  and `accessibility.ts` has no direct tests at all. Prioritize these over more
+  `codegen`/`brittleness` coverage.
 - [ ] **No Playwright-based e2e tests of the extension itself.** Ironic for a
   Playwright-locator tool — loading the built `dist/` as an unpacked extension via
   `launchPersistentContext` would catch picker/highlight/panel regressions that

@@ -33,9 +33,20 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
     return;
   }
 
-  if (message.type !== "broadcast") return;
   const tabId = sender.tab?.id;
   if (!tabId) return;
+
+  if (message.type === "relay-to-top") {
+    // A sub-frame's result for the panel, which lives in the top frame. Routed
+    // through here (rather than window.postMessage) so the page can neither read
+    // it nor forge one: only this extension's own scripts can reach this listener.
+    chrome.tabs.sendMessage(tabId, message.message, { frameId: 0 }).catch(() => {
+      // the top frame's content script is gone (navigated away)
+    });
+    return;
+  }
+
+  if (message.type !== "broadcast") return;
   const payload = (message as BroadcastMessage).payload;
   void sendToTab(tabId, payload);
 });

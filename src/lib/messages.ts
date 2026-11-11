@@ -1,7 +1,5 @@
 import type { CodeLanguage, LocatorCandidate, ResolutionKind } from "./types";
 
-export const PAGE_CHANNEL = "locator-pilot";
-
 export interface TogglePanelMessage {
   type: "toggle-panel";
   testIdAttribute: string;
@@ -47,7 +45,20 @@ export interface BroadcastMessage {
     | RecomputeExactMessage;
 }
 
+/**
+ * A frame's result on its way to the top frame's panel. Sent to the background
+ * worker, which forwards `message` to the tab's top frame only (frameId 0) — so it
+ * never travels over `window.postMessage`, where the page itself could read it or
+ * forge one.
+ */
+export interface RelayToTopMessage {
+  type: "relay-to-top";
+  message: ContentResponse;
+}
+
 export type ExtensionMessage =
+  | RelayToTopMessage
+  | ContentResponse
   | TogglePanelMessage
   | ActivatePickerMessage
   | DeactivatePickerMessage
@@ -68,8 +79,8 @@ export interface FindResultMessage {
   type: "find-result";
   matchCount: number;
   guessed: boolean;
-  /** True when chained calls after the parsed locator (`.filter()`, `.nth()`, `.first()`, ...) were ignored. */
-  chained: boolean;
+  /** Parts of the pasted expression that couldn't be evaluated and were left out — see `ParseResult.ignoredCalls`. */
+  ignoredCalls: string[];
   error?: string;
 }
 
@@ -80,14 +91,3 @@ export interface CandidatesUpdatedMessage {
 }
 
 export type ContentResponse = ElementPickedMessage | FindResultMessage | CandidatesUpdatedMessage;
-
-export interface PageEnvelope {
-  source: typeof PAGE_CHANNEL;
-  message: ContentResponse;
-}
-
-export function isPageEnvelope(data: unknown): data is PageEnvelope {
-  if (!data || typeof data !== "object") return false;
-  const value = data as PageEnvelope;
-  return value.source === PAGE_CHANNEL && !!value.message && typeof value.message.type === "string";
-}

@@ -375,21 +375,32 @@ function buildCandidate(spec: LocatorSpec, doc: Document): LocatorCandidate {
   };
 }
 
+/**
+ * Fills the panel's `MAX_CANDIDATES` slots per docs/LOCATOR_STRATEGY.md §2
+ * ("Filling the panel"): unique candidates first, in precedence order, then
+ * non-unique ones (also in precedence order) only for whatever slots are left. A
+ * plain "first three by precedence" cut could hide the only locator that actually
+ * resolves to one element (typically test-id or css) behind three ambiguous ones.
+ */
 function buildCandidateList(specs: LocatorSpec[], doc: Document): LocatorCandidate[] {
   const seen = new Set<string>();
-  const candidates: LocatorCandidate[] = [];
+  const unique: LocatorCandidate[] = [];
+  const nonUnique: LocatorCandidate[] = [];
 
   for (const spec of specs) {
     const key = specKey(spec);
     if (seen.has(key)) continue;
     seen.add(key);
 
-    candidates.push(buildCandidate(spec, doc));
+    const candidate = buildCandidate(spec, doc);
+    (candidate.isUnique ? unique : nonUnique).push(candidate);
 
-    if (candidates.length >= MAX_CANDIDATES) break;
+    // Later specs are lower precedence, so once every slot holds a unique
+    // candidate nothing further can displace one — skip their DOM sweeps.
+    if (unique.length >= MAX_CANDIDATES) break;
   }
 
-  return candidates;
+  return [...unique, ...nonUnique].slice(0, MAX_CANDIDATES);
 }
 
 export interface PickResult {
