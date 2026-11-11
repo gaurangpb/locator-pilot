@@ -89,6 +89,16 @@ export function isExposedToAccessibilityTree(el: Element): boolean {
   return isCssVisible(el) && !isAriaHidden(el);
 }
 
+function isDecorativeImage(el: Element): boolean {
+  return (
+    el.getAttribute("alt") === "" &&
+    !el.getAttribute("title") &&
+    !el.hasAttribute("aria-label") &&
+    !el.hasAttribute("aria-labelledby") &&
+    !el.hasAttribute("tabindex")
+  );
+}
+
 export function getImplicitRole(el: Element): string | null {
   const explicit = el.getAttribute("role");
   if (explicit) return explicit.trim().split(/\s+/)[0] ?? null;
@@ -102,6 +112,13 @@ export function getImplicitRole(el: Element): string | null {
 
   if (tag === "a") {
     return el.hasAttribute("href") ? "link" : null;
+  }
+
+  if (tag === "img" && isDecorativeImage(el)) {
+    // alt="" marks the image decorative: role "presentation", out of the a11y tree,
+    // so getByRole('img') never matches it. Mirrors Playwright's getAriaRole, which
+    // keeps the img role when a title, aria-label(ledby) or tabindex says otherwise.
+    return null;
   }
 
   return IMPLICIT_ROLE_TAGS[tag] ?? null;

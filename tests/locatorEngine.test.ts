@@ -68,6 +68,20 @@ describe("generateCandidates", () => {
     expect(testIdCandidate?.isUnique).toBe(true);
   });
 
+  it("checks css uniqueness through shadow roots, not just the light DOM", () => {
+    // "span.tag" is unique in the light DOM but matches twice once the shadow root is
+    // searched too (as Playwright's CSS engine does) — the selector must keep its parent.
+    const doc = setBody(`<span class="tag"></span><div id="host"></div>`);
+    const shadow = doc.getElementById("host")!.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<div class="wrap"><span class="tag"></span></div>`;
+    const el = shadow.querySelector("span")!;
+    const candidates = generateCandidates(el, { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE }, doc);
+
+    const cssCandidate = candidates.find((c) => c.spec.strategy === "css");
+    expect(cssCandidate?.spec).toMatchObject({ selector: "div.wrap > span.tag" });
+    expect(cssCandidate?.matchCount).toBe(1);
+  });
+
   it("flags a css selector with nth-child as fragile and an auto-generated class as fragile", () => {
     const doc = setBody(`<div class="css-a1b2c3"><span></span><span></span></div>`);
     const el = doc.querySelectorAll("span")[1]!;
