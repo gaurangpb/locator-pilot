@@ -2,6 +2,7 @@ import { getAccessibleName, getImplicitRole, isCssVisible, isExposedToAccessibil
 import { assessBrittleness } from "./brittleness";
 import { toCSharp, toTypeScript } from "./codegen";
 import { cssEscape } from "./cssEscape";
+import { deepQuerySelectorAll } from "./domQuery";
 import { matchLocator } from "./matcher";
 import type { EngineOptions, LocatorCandidate, LocatorSpec, ResolutionKind } from "./types";
 
@@ -103,11 +104,17 @@ function findAssociatedLabelText(el: Element, doc: Document): string | null {
   return null;
 }
 
-/** Builds a short-as-possible CSS selector, preferring a plain id, falling back to a tag+nth-of-type path. */
+/**
+ * Builds a short-as-possible CSS selector, preferring a plain id, falling back to a tag+nth-of-type path.
+ * Uniqueness is probed with deepQuerySelectorAll — the same shadow-piercing search the matcher
+ * (and Playwright's CSS engine) uses — so a selector for an element inside a shadow root is
+ * shortened against what's actually on the page, not just the light DOM it can't see.
+ */
 function buildCssSelector(el: Element, doc: Document): string {
+  const isUnique = (selector: string): boolean => deepQuerySelectorAll(doc, selector).length === 1;
   if (el.id) {
     const idSelector = `#${cssEscape(el.id)}`;
-    if (doc.querySelectorAll(idSelector).length === 1) return idSelector;
+    if (isUnique(idSelector)) return idSelector;
   }
 
   const segments: string[] = [];
@@ -152,11 +159,8 @@ function buildCssSelector(el: Element, doc: Document): string {
   // Try the shortest trailing slice of the path that still uniquely resolves.
   for (let start = segments.length - 1; start >= 0; start--) {
     const candidate = segments.slice(start).join(" > ");
-    try {
-      if (doc.querySelectorAll(candidate).length === 1) return candidate;
-    } catch {
-      // ignore malformed intermediate selector
-    }
+    // deepQuerySelectorAll already swallows a malformed intermediate selector.
+    if (isUnique(candidate)) return candidate;
   }
 
   return segments.join(" > ");

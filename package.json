@@ -11,14 +11,18 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "pack": "node pack.mjs",
-    "store:screenshots": "node store/capture.mjs"
+    "store:screenshots": "node store/capture.mjs",
+    "test:e2e": "npm run build && playwright test",
+    "version": "node scripts/sync-version.mjs && git add manifest.json CHANGELOG.md",
+    "publish:store": "node scripts/publish-store.mjs"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.287",
-    "@types/node": "^22.10.2",
-    "esbuild": "^0.24.2",
-    "jsdom": "^25.0.1",
+    "@playwright/test": "^1.65.0",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "jsdom": "^29.1.1",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^5.1.0"
   }
 }

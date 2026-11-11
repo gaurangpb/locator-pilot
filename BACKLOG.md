@@ -145,44 +145,51 @@ Status legend: `[ ]` open, `[x]` done.
 
 ## P2 — Hardening / code quality
 
-- [ ] **No CI.** The typecheck → test → build sequence in [CLAUDE.md](CLAUDE.md)
-  only runs by hand. Add a GitHub Actions workflow for it, plus a `.gitattributes`
-  to stop the LF/CRLF warnings on Windows checkouts.
-- [ ] **No release process.** No git tags or changelog, and the version lives in
-  both `package.json` and `manifest.json` with nothing keeping them in sync.
-- [ ] **Dev dependencies are several majors behind, with 7 `npm audit` findings**
-  (2 critical, via vitest's tinypool). Nothing ships in the extension, but the fix
-  needs a major vitest upgrade (2 → 5); jsdom and esbuild are also behind.
-- [ ] **[content.ts](src/content/content.ts) is one 449-line closure** mixing
-  picker, highlight, find, live re-check and history state, with no tests. Split it
-  into modules once e2e coverage (below) exists to guard the refactor.
-
-- [ ] **`buildCssSelector`'s uniqueness check is blind to shadow DOM.** It validates
-  candidate selectors with plain `doc.querySelectorAll`, which can't see into
-  shadow roots — the shortest-unique-selector logic silently never runs correctly
-  there. Swap in `deepQuerySelectorAll` for the uniqueness probes.
-- [ ] **`<img alt="">` still gets role `"img"`.** An empty `alt` marks a decorative
-  image (excluded from the a11y tree) but `getImplicitRole` doesn't account for it
-  — same root cause as the P0 visibility bug.
-- [ ] **Thin test coverage on the riskiest code.** `matcher.ts` (8 tests) and
-  `domQuery.ts` (3 tests) now cover only the P0 visibility/XPath fixes and the
-  alt/title strategies; label, placeholder, text and test-id matching are untested,
-  and `accessibility.ts` has no direct tests at all. Prioritize these over more
-  `codegen`/`brittleness` coverage.
-- [ ] **No Playwright-based e2e tests of the extension itself.** Ironic for a
-  Playwright-locator tool — loading the built `dist/` as an unpacked extension via
-  `launchPersistentContext` would catch picker/highlight/panel regressions that
-  jsdom unit tests structurally can't.
-- [ ] **Escape only cancels picking, not the panel.** Minor UX inconsistency with
-  most docked-panel patterns.
+- [x] **No CI.** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs typecheck →
+  unit tests → build → Playwright e2e → pack on every push to `master` and every PR
+  (zip uploaded as an artifact). [.gitattributes](.gitattributes) normalizes text to
+  LF.
+- [x] **No release process.** `package.json` is the version's source of truth:
+  `npm version` runs [scripts/sync-version.mjs](scripts/sync-version.mjs) (syncs
+  `manifest.json`, stamps [CHANGELOG.md](CHANGELOG.md)) and tags `vX.Y.Z`;
+  [esbuild.mjs](esbuild.mjs) refuses to build if the two versions drift. Pushing the
+  tag runs [release.yml](.github/workflows/release.yml): GitHub Release + Chrome Web
+  Store upload/submit via [scripts/publish-store.mjs](scripts/publish-store.mjs)
+  (API v2). Setup in [RELEASING.md](RELEASING.md). Also corrected the mistyped item
+  ID in [store/LISTING.md](store/LISTING.md).
+- [x] **Dev dependencies are several majors behind, with 7 `npm audit` findings.**
+  Now vitest 5, jsdom 29, esbuild 0.28, @types/chrome 0.3; `npm audit` is clean.
+  TypeScript stays on 5.x on purpose — 7.0 is the native (Go) compiler rewrite and
+  deserves its own change.
+- [x] **[content.ts](src/content/content.ts) was one 449-line closure.** Split into
+  [highlights.ts](src/content/highlights.ts), [picker.ts](src/content/picker.ts),
+  [liveRecheck.ts](src/content/liveRecheck.ts) and
+  [findAggregator.ts](src/content/findAggregator.ts) (unit-tested); `content.ts` is
+  now just frame/panel wiring. Guarded by the e2e suite below.
+- [x] **`buildCssSelector`'s uniqueness check is blind to shadow DOM.** Uniqueness
+  probes now use `deepQuerySelectorAll` ([locatorEngine.ts](src/lib/locatorEngine.ts)).
+- [x] **`<img alt="">` still gets role `"img"`.** `getImplicitRole` in
+  [accessibility.ts](src/lib/accessibility.ts) treats it as decorative (no role)
+  unless a title, aria-label(ledby) or tabindex overrides it, mirroring Playwright.
+- [x] **Thin test coverage on the riskiest code.** Added placeholder/text/test-id/role
+  matcher tests, nested-shadow and malformed-input `domQuery` tests, and a new
+  [tests/accessibility.test.ts](tests/accessibility.test.ts) (143 unit tests total).
+  The text tests caught a real bug: `getByText` matched `<body>` via inline
+  `<script>` text — fixed with `renderedText` in [matcher.ts](src/lib/matcher.ts).
+- [x] **No Playwright-based e2e tests of the extension itself.**
+  [e2e/](e2e) (`npm run test:e2e`) loads a copy of `dist/` in Chromium and covers
+  panel toggle, picking, Escape, chained find-on-page, live re-check and iframe
+  picks. It caught a real bug: `crypto.randomUUID` doesn't exist on non-HTTPS pages,
+  which broke pick history and the live re-check there.
+- [x] **Escape only cancels picking, not the panel.** Escape with focus in the panel
+  now closes it; while picking, the first Escape still only cancels the pick
+  ([content.ts](src/content/content.ts), [picker.ts](src/content/picker.ts)).
 - [ ] **Perf watch-item, not yet a problem.** ~36ms per click on an 8,800-node
   synthetic page (several full-DOM sweeps: one per candidate for match-count, plus
   the CSS uniqueness-shortening loop's own per-segment queries). No caching between
-  the "generate" and "confirm uniqueness" passes. The new interactive-relative
-  resolution ([locatorEngine.ts](src/lib/locatorEngine.ts) `resolveTargetElement`)
-  adds a bounded ancestor/descendant walk (depth 3) on top of this, but only for
-  role-less picks — not measured, likely negligible next to the existing sweeps.
-  Revisit if it gets reported as laggy on real 40k+ node SPAs.
+  the "generate" and "confirm uniqueness" passes. The CSS uniqueness probes now also
+  walk shadow roots (`deepQuerySelectorAll`), which adds a little on shadow-heavy
+  pages. Revisit if it gets reported as laggy on real 40k+ node SPAs.
 - [x] **Chrome Web Store packaging.** Manifest description trimmed to ≤132 chars,
   public privacy policy page under `docs/`, listing copy and graphic assets in
   [store/LISTING.md](store/LISTING.md), and `npm run pack` builds `locator-pilot.zip`.

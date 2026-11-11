@@ -108,11 +108,30 @@ function matchByTitle(doc: Document, text: TextPattern, exact: boolean): Element
   });
 }
 
+const NON_TEXT_TAGS = new Set(["script", "style", "noscript"]);
+
+/**
+ * textContent minus any script/style/noscript descendants — Playwright's getByText
+ * never sees that text, so without this an ancestor like <body> "contains" a word
+ * that only appears inside an inline script.
+ */
+function renderedText(el: Element): string {
+  if (!el.querySelector("script, style, noscript")) return el.textContent || "";
+  let text = "";
+  for (const child of Array.from(el.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) text += child.textContent ?? "";
+    else if (child.nodeType === Node.ELEMENT_NODE && !NON_TEXT_TAGS.has((child as Element).tagName.toLowerCase())) {
+      text += renderedText(child as Element);
+    }
+  }
+  return text;
+}
+
 function matchByText(doc: Document, text: TextPattern, exact: boolean): Element[] {
-  const skip = new Set(["script", "style", "svg", "noscript"]);
+  const skip = new Set([...NON_TEXT_TAGS, "svg"]);
   const candidates = deepQueryAll(doc).filter((el) => {
     if (skip.has(el.tagName.toLowerCase())) return false;
-    return textMatches(el.textContent || "", text, exact);
+    return textMatches(renderedText(el), text, exact);
   });
 
   // Keep only the innermost matching element in each ancestor chain, since a

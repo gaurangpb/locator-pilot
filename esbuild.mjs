@@ -1,5 +1,17 @@
 import { build, context } from "esbuild";
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+
+// package.json is the version's source of truth (scripts/sync-version.mjs keeps
+// manifest.json in step via `npm version`); never ship a build where they differ.
+const pkgVersion = JSON.parse(readFileSync("package.json", "utf8")).version;
+const manifestVersion = JSON.parse(readFileSync("manifest.json", "utf8")).version;
+if (pkgVersion !== manifestVersion) {
+  console.error(
+    `Version mismatch: package.json ${pkgVersion} vs manifest.json ${manifestVersion}. ` +
+      "Bump with `npm version <patch|minor|major>`, which updates both.",
+  );
+  process.exit(1);
+}
 
 const watch = process.argv.includes("--watch");
 const outdir = "dist";

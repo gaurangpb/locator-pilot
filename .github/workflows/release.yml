@@ -1,0 +1,68 @@
+name: Release
+
+# Runs when a version tag (created by `npm version …`) is pushed: re-runs every
+# check, attaches the store zip to a GitHub Release, then uploads it to the Chrome
+# Web Store and submits it for review. See RELEASING.md.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tag matches package.json and manifest.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./package.json').version")
+          man=$(node -p "require('./manifest.json').version")
+          if [ "$tag" != "$pkg" ] || [ "$tag" != "$man" ]; then
+            echo "Tag $tag ≠ package.json $pkg / manifest.json $man"; exit 1
+          fi
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - run: npm run pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: locator-pilot-zip
+          path: locator-pilot.zip
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" locator-pilot.zip --title "$GITHUB_REF_NAME" --notes "${notes:-See CHANGELOG.md}"
+
+  publish-store:
+    needs: build
+    runs-on: ubuntu-latest
+    # Add required reviewers to this environment (repo Settings → Environments) to
+    # get a manual "approve before it goes to the store" gate.
+    environment: chrome-web-store
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: locator-pilot-zip
+      - name: Upload to Chrome Web Store and submit for review
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+        run: node scripts/publish-store.mjs

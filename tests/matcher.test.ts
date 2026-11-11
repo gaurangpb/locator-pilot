@@ -100,3 +100,91 @@ describe("matchLocator label strategy — Playwright's three labelling mechanism
     expect(ids(matchLocator(doc, label("Name")))).toEqual(["first", "second"]);
   });
 });
+
+describe("matchLocator placeholder strategy", () => {
+  it("matches inputs and textareas by placeholder, case-insensitive substring by default", () => {
+    const doc = setBody(`
+      <input id="a" placeholder="Search products" />
+      <textarea id="b" placeholder="Search notes"></textarea>
+      <input id="c" />
+    `);
+    const ids = matchLocator(doc, { strategy: "placeholder", text: "search", exact: false }).map((el) => el.id);
+    expect(ids).toEqual(["a", "b"]);
+  });
+
+  it("respects exact matching", () => {
+    const doc = setBody(`<input placeholder="Search products" />`);
+    expect(matchLocator(doc, { strategy: "placeholder", text: "Search", exact: true })).toHaveLength(0);
+    expect(matchLocator(doc, { strategy: "placeholder", text: "Search products", exact: true })).toHaveLength(1);
+  });
+});
+
+describe("matchLocator text strategy", () => {
+  it("returns only the innermost element containing the text", () => {
+    const doc = setBody(`<div id="outer"><p id="inner">Welcome back, <b>Ada</b></p></div>`);
+    const ids = matchLocator(doc, { strategy: "text", text: "Welcome back", exact: false }).map((el) => el.id);
+    expect(ids).toEqual(["inner"]);
+  });
+
+  it("normalizes whitespace and ignores case unless exact", () => {
+    const doc = setBody(`<span>  Sign
+        in  </span>`);
+    expect(matchLocator(doc, { strategy: "text", text: "sign in", exact: false })).toHaveLength(1);
+    expect(matchLocator(doc, { strategy: "text", text: "sign in", exact: true })).toHaveLength(0);
+    expect(matchLocator(doc, { strategy: "text", text: "Sign in", exact: true })).toHaveLength(1);
+  });
+
+  it("skips script and style contents", () => {
+    const doc = setBody(`<script>var x = "Checkout";</script><style>/* Checkout */</style>`);
+    expect(matchLocator(doc, { strategy: "text", text: "Checkout", exact: false })).toHaveLength(0);
+  });
+
+  it("finds text inside a shadow root", () => {
+    const doc = setBody(`<div id="host"></div>`);
+    doc.getElementById("host")!.attachShadow({ mode: "open" }).innerHTML = `<span>Inside shadow</span>`;
+    expect(matchLocator(doc, { strategy: "text", text: "Inside shadow", exact: false })).toHaveLength(1);
+  });
+
+  it("evaluates a regex pattern in place of the spec text", () => {
+    const doc = setBody(`<button>Submit order</button><button>Cancel</button>`);
+    const matches = matchLocator(doc, { strategy: "text", text: "", exact: false }, /^submit/i);
+    expect(matches.map((el) => el.textContent)).toEqual(["Submit order"]);
+  });
+});
+
+describe("matchLocator testId strategy", () => {
+  it("matches the configured attribute exactly, including inside shadow roots", () => {
+    const doc = setBody(`
+      <div data-testid="save"></div>
+      <div data-testid="save-draft"></div>
+      <div data-qa="save"></div>
+      <div id="host"></div>
+    `);
+    doc.getElementById("host")!.attachShadow({ mode: "open" }).innerHTML = `<span data-testid="save"></span>`;
+    expect(matchLocator(doc, { strategy: "testId", attribute: "data-testid", value: "save" })).toHaveLength(2);
+    expect(matchLocator(doc, { strategy: "testId", attribute: "data-qa", value: "save" })).toHaveLength(1);
+  });
+
+  it("escapes quotes and special characters in the value", () => {
+    const doc = setBody(`<div data-testid='say "hi"'></div>`);
+    expect(matchLocator(doc, { strategy: "testId", attribute: "data-testid", value: 'say "hi"' })).toHaveLength(1);
+  });
+
+  it("evaluates a regex pattern against the attribute value", () => {
+    const doc = setBody(`<div data-testid="row-1"></div><div data-testid="row-2"></div><div data-testid="header"></div>`);
+    expect(matchLocator(doc, { strategy: "testId", attribute: "data-testid", value: "" }, /^row-\d$/)).toHaveLength(2);
+  });
+});
+
+describe("matchLocator role strategy — names and decorative images", () => {
+  it("matches the accessible name as a substring unless exact", () => {
+    const doc = setBody(`<button>Save draft</button><button>Save</button>`);
+    expect(matchLocator(doc, { strategy: "role", role: "button", name: "save", exact: false })).toHaveLength(2);
+    expect(matchLocator(doc, { strategy: "role", role: "button", name: "Save", exact: true })).toHaveLength(1);
+  });
+
+  it("does not treat an <img alt=\"\"> as role img", () => {
+    const doc = setBody(`<img alt="" src="divider.png" /><img alt="Logo" src="logo.png" />`);
+    expect(matchLocator(doc, { strategy: "role", role: "img", exact: false })).toHaveLength(1);
+  });
+});

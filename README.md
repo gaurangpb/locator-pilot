@@ -67,12 +67,16 @@ npm run store:screenshots   # regenerate store listing screenshots/promo tiles
 ## Testing
 
 ```bash
-npm test        # unit tests (locator engine, parser, codegen, brittleness)
 npm run typecheck
+npm test            # unit tests (vitest + jsdom): engine, matcher, parser, codegen, …
+npm run test:e2e    # builds dist/, then drives it in real Chromium with Playwright
 ```
 
-The picker/overlay UI itself needs a real browser to exercise (hover/click/highlight
-positioning) — load `dist/` unpacked and try it on a real page as described above.
+The e2e suite ([e2e/](./e2e)) loads a copy of `dist/` as an unpacked extension and
+exercises the panel, picker, find-on-page, live re-check, Escape handling and
+iframe picks. First run needs a browser: `npx playwright install chromium`.
+CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of the above on
+every push and pull request.
 
 ## Known limitations / things to verify
 
@@ -91,18 +95,20 @@ positioning) — load `dist/` unpacked and try it on a real page as described ab
 
 ## Chrome Web Store
 
-The listing is ready to submit. Copy-paste fields, privacy answers, and asset paths
-are in [store/LISTING.md](./store/LISTING.md).
+Live listing:
+https://chromewebstore.google.com/detail/locator-pilot-%E2%80%94-playwrigh/mlbblliaikkmocgelpinldnnbjdgkpje
 
 - Manifest V3, no remote code — everything is bundled locally and not minified.
 - Minimal permissions: `activeTab`, `scripting`, `storage`. No `host_permissions`.
 - Privacy policy (public URL): https://gaurangpb.github.io/locator-pilot/privacy.html
   (source: [PRIVACY.md](./PRIVACY.md) / [docs/privacy.html](./docs/privacy.html)).
-- Upload `locator-pilot.zip` from `npm run pack`. `manifest.json` is at the zip root.
-- Single purpose: element locator generation/lookup for Playwright test automation.
+- Listing copy and assets: [store/LISTING.md](./store/LISTING.md).
 
-Publishing still requires a Chrome Web Store developer account (one-time $5, 2-Step
-Verification on). You cannot finish the dashboard upload from this repo alone.
+New versions are released by pushing a version tag: `npm version patch` then
+`git push --follow-tags`. CI builds and tests the release, attaches the zip to a
+GitHub Release, and uploads it to the store for review. One-time API setup and a
+manual fallback are in [RELEASING.md](./RELEASING.md); changes are in
+[CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 
