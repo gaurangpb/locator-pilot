@@ -41,17 +41,24 @@ only update an existing item. It can't create one.
 
 1. **Google Cloud project.** In <https://console.cloud.google.com>, create a project
    and enable the **Chrome Web Store API**.
-2. **OAuth consent screen.** Choose External and add your own Google account (the one
-   that owns the store item) as a test user.
-3. **OAuth client.** Create an OAuth client ID of type *Web application*, with
-   `https://developers.google.com/oauthplayground` as an authorized redirect URI.
+2. **OAuth consent screen & Branding.** Under **Google Auth Platform → Branding**, fill
+   in the app name, support/developer emails, and the **App domain** URLs (homepage,
+   privacy policy, and authorized domains) and save. Under **Audience**, choose
+   External and click **Publish app** to set it to **In production** (if **Publish app**
+   is disabled, complete the Branding page first).
+3. **OAuth client.** Under **Clients**, create an OAuth client ID of type *Web
+   application*, with `https://developers.google.com/oauthplayground` as an authorized
+   redirect URI.
 4. **Refresh token.** In the [OAuth Playground](https://developers.google.com/oauthplayground),
    go to settings (gear icon), tick *Use your own OAuth credentials*, and enter the
-   client ID and secret. Authorize the scope
+   client ID and secret **before** authorizing (omitting this causes `invalid_grant`
+   during token exchange). Authorize the scope
    `https://www.googleapis.com/auth/chromewebstore` while signed in as the store
    owner, then exchange the code for tokens and copy the **refresh token**.
 5. **Publisher ID.** In the [Developer Dashboard](https://chrome.google.com/webstore/devconsole),
-   go to Publisher → Settings.
+   go to **Account** (or **Publisher → Settings**) and copy the **Publisher ID** UUID
+   (also shown as the first UUID in the `webstore/devconsole/<publisher-id>` URL —
+   do not use the extension's Item ID, which causes `403 PERMISSION_DENIED`).
 6. **GitHub secrets.** In the repo, go to Settings → Secrets and variables → Actions
    and add `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` and
    `CWS_PUBLISHER_ID`.
@@ -60,7 +67,7 @@ only update an existing item. It can't create one.
    click after the GitHub Release is created.
 
 A refresh token for an app in the consent screen's *Testing* state expires after 7
-days. To keep it long-lived, set the consent screen to *In production*. It works
+days. Keeping it in *In production* makes the refresh token long-lived and works
 without Google verifying the app.
 
 ## Manual fallback
