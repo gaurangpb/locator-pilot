@@ -6,6 +6,7 @@ export type LocatorStrategy =
   | "title"
   | "text"
   | "testId"
+  | "chained"
   | "css"
   | "xpath";
 
@@ -52,6 +53,18 @@ export interface TestIdLocatorSpec {
   value: string;
 }
 
+/**
+ * A semantic locator scoped to an unambiguous ancestor container (e.g. a table row,
+ * list item, or test-id wrapper) to disambiguate a non-unique child locator.
+ */
+export interface ChainedLocatorSpec {
+  strategy: "chained";
+  parent: LocatorSpec;
+  /** Optional `.filter({ hasText })` narrowing `parent` (e.g. for `row` or `listitem`). */
+  parentHasText?: string;
+  child: LocatorSpec;
+}
+
 export interface CssLocatorSpec {
   strategy: "css";
   selector: string;
@@ -70,6 +83,7 @@ export type LocatorSpec =
   | TitleLocatorSpec
   | TextLocatorSpec
   | TestIdLocatorSpec
+  | ChainedLocatorSpec
   | CssLocatorSpec
   | XPathLocatorSpec;
 
@@ -87,12 +101,16 @@ export interface LocatorCandidate {
   /** True when at least one matched element is CSS-hidden (display:none or visibility:hidden) — Playwright actionability (click, fill, etc.) will fail or time out on it even though the locator resolves. Deliberately excludes aria-hidden, which is a common pattern on visible decorative elements and doesn't affect actionability. */
   hasHiddenMatch: boolean;
   brittleness: BrittlenessResult;
+  /** Outermost-to-innermost CSS selectors for enclosing same-origin iframes, when picked inside a frame. */
+  frameSelectors?: string[];
   csharp: string;
   typescript: string;
 }
 
 export interface EngineOptions {
   testIdAttribute: string;
+  /** Enclosing same-origin iframe CSS selectors (outermost first) to prepend as `frameLocator(...)` calls. */
+  frameSelectors?: string[];
 }
 
 /**

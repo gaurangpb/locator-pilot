@@ -1,3 +1,4 @@
+import { isDeepDescendant } from "./domQuery";
 import { matchLocator, textMatches, type TextPattern } from "./matcher";
 import type { LocatorSpec } from "./types";
 
@@ -37,16 +38,6 @@ export interface CombineStep {
 
 export type QueryStep = LocatorStep | FilterStep | NthStep | CombineStep;
 export type LocatorQuery = QueryStep[];
-
-/** True when `el` is strictly inside `ancestor`, crossing shadow-root boundaries on the way up. */
-function isDeepDescendant(ancestor: Element, el: Element): boolean {
-  let node: Node | null = el.parentNode;
-  while (node) {
-    if (node === ancestor) return true;
-    node = node.nodeType === 11 && "host" in node ? (node as ShadowRoot).host : node.parentNode;
-  }
-  return false;
-}
 
 function inDocumentOrder(elements: Element[]): Element[] {
   return elements.slice().sort((a, b) => {

@@ -13,78 +13,96 @@ function csharpAriaRole(role: string): string {
   return `AriaRole.${role.charAt(0).toUpperCase()}${role.slice(1)}`;
 }
 
-export function toCSharp(spec: LocatorSpec): string {
+function toCSharpCall(spec: LocatorSpec): string {
   switch (spec.strategy) {
     case "role": {
       const opts: string[] = [];
       if (spec.name) opts.push(`Name = ${csharpString(spec.name)}`);
       if (spec.exact) opts.push("Exact = true");
       const optsArg = opts.length > 0 ? `, new() { ${opts.join(", ")} }` : "";
-      return `Page.GetByRole(${csharpAriaRole(spec.role)}${optsArg})`;
+      return `GetByRole(${csharpAriaRole(spec.role)}${optsArg})`;
     }
     case "label": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
-      return `Page.GetByLabel(${csharpString(spec.text)}${optsArg})`;
+      return `GetByLabel(${csharpString(spec.text)}${optsArg})`;
     }
     case "placeholder": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
-      return `Page.GetByPlaceholder(${csharpString(spec.text)}${optsArg})`;
+      return `GetByPlaceholder(${csharpString(spec.text)}${optsArg})`;
     }
     case "altText": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
-      return `Page.GetByAltText(${csharpString(spec.text)}${optsArg})`;
+      return `GetByAltText(${csharpString(spec.text)}${optsArg})`;
     }
     case "title": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
-      return `Page.GetByTitle(${csharpString(spec.text)}${optsArg})`;
+      return `GetByTitle(${csharpString(spec.text)}${optsArg})`;
     }
     case "text": {
       const optsArg = spec.exact ? `, new() { Exact = true }` : "";
-      return `Page.GetByText(${csharpString(spec.text)}${optsArg})`;
+      return `GetByText(${csharpString(spec.text)}${optsArg})`;
     }
     case "testId":
-      return `Page.GetByTestId(${csharpString(spec.value)})`;
+      return `GetByTestId(${csharpString(spec.value)})`;
+    case "chained": {
+      const filter = spec.parentHasText ? `.Filter(new() { HasText = ${csharpString(spec.parentHasText)} })` : "";
+      return `${toCSharpCall(spec.parent)}${filter}.${toCSharpCall(spec.child)}`;
+    }
     case "css":
-      return `Page.Locator(${csharpString(spec.selector)})`;
+      return `Locator(${csharpString(spec.selector)})`;
     case "xpath":
-      return `Page.Locator(${csharpString(`xpath=${spec.expression}`)})`;
+      return `Locator(${csharpString(`xpath=${spec.expression}`)})`;
   }
 }
 
-export function toTypeScript(spec: LocatorSpec): string {
+function toTypeScriptCall(spec: LocatorSpec): string {
   switch (spec.strategy) {
     case "role": {
       const opts: string[] = [];
       if (spec.name) opts.push(`name: ${tsString(spec.name)}`);
       if (spec.exact) opts.push("exact: true");
       const optsArg = opts.length > 0 ? `, { ${opts.join(", ")} }` : "";
-      return `page.getByRole(${tsString(spec.role)}${optsArg})`;
+      return `getByRole(${tsString(spec.role)}${optsArg})`;
     }
     case "label": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
-      return `page.getByLabel(${tsString(spec.text)}${optsArg})`;
+      return `getByLabel(${tsString(spec.text)}${optsArg})`;
     }
     case "placeholder": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
-      return `page.getByPlaceholder(${tsString(spec.text)}${optsArg})`;
+      return `getByPlaceholder(${tsString(spec.text)}${optsArg})`;
     }
     case "altText": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
-      return `page.getByAltText(${tsString(spec.text)}${optsArg})`;
+      return `getByAltText(${tsString(spec.text)}${optsArg})`;
     }
     case "title": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
-      return `page.getByTitle(${tsString(spec.text)}${optsArg})`;
+      return `getByTitle(${tsString(spec.text)}${optsArg})`;
     }
     case "text": {
       const optsArg = spec.exact ? `, { exact: true }` : "";
-      return `page.getByText(${tsString(spec.text)}${optsArg})`;
+      return `getByText(${tsString(spec.text)}${optsArg})`;
     }
     case "testId":
-      return `page.getByTestId(${tsString(spec.value)})`;
+      return `getByTestId(${tsString(spec.value)})`;
+    case "chained": {
+      const filter = spec.parentHasText ? `.filter({ hasText: ${tsString(spec.parentHasText)} })` : "";
+      return `${toTypeScriptCall(spec.parent)}${filter}.${toTypeScriptCall(spec.child)}`;
+    }
     case "css":
-      return `page.locator(${tsString(spec.selector)})`;
+      return `locator(${tsString(spec.selector)})`;
     case "xpath":
-      return `page.locator(${tsString(`xpath=${spec.expression}`)})`;
+      return `locator(${tsString(`xpath=${spec.expression}`)})`;
   }
+}
+
+export function toCSharp(spec: LocatorSpec, frameSelectors?: string[]): string {
+  const frames = (frameSelectors ?? []).map((sel) => `.FrameLocator(${csharpString(sel)})`).join("");
+  return `Page${frames}.${toCSharpCall(spec)}`;
+}
+
+export function toTypeScript(spec: LocatorSpec, frameSelectors?: string[]): string {
+  const frames = (frameSelectors ?? []).map((sel) => `.frameLocator(${tsString(sel)})`).join("");
+  return `page${frames}.${toTypeScriptCall(spec)}`;
 }

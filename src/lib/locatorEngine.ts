@@ -356,13 +356,185 @@ function resolveTargetElement(el: Element, doc: Document, directSpecs: LocatorSp
   return { element: el, resolvedVia: null };
 }
 
+function parentOrHost(node: Element): Element | null {
+  if (node.parentElement) return node.parentElement;
+  const root = node.getRootNode();
+  return root instanceof ShadowRoot ? root.host : null;
+}
+
+const MAX_CHAIN_DEPTH = 6;
+const MAX_SCOPE_TEXT_LENGTH = 50;
+const CONTAINER_ROLES = new Set([
+  "row",
+  "listitem",
+  "article",
+  "region",
+  "dialog",
+  "form",
+  "navigation",
+  "group",
+  "tabpanel",
+  "complementary",
+  "main",
+  "banner",
+  "contentinfo",
+]);
+const TEXT_FILTER_CONTAINER_ROLES = new Set(["row", "listitem", "article"]);
+
+function explicitAriaName(el: Element, doc: Document): string | null {
+  const labelledBy = el.getAttribute("aria-labelledby");
+  if (labelledBy) {
+    const text = labelledBy
+      .split(/\s+/)
+      .map((id) => doc.getElementById(id)?.textContent ?? "")
+      .map((t) => t.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join(" ");
+    if (text) return text;
+  }
+  const ariaLabel = el.getAttribute("aria-label")?.replace(/\s+/g, " ").trim();
+  return ariaLabel || null;
+}
+
+/**
+ * Picks a short, human-readable text snippet inside `container` (excluding `target`
+ * itself) suitable for `.filter({ hasText })` — e.g. the first label cell in a `<tr>`
+ * or the leading text of an `<li>`.
+ */
+function extractDistinguishingText(container: Element, target: Element): string | null {
+  const tag = container.tagName.toLowerCase();
+  if (tag === "tr") {
+    for (const cell of Array.from(container.children)) {
+      const cellTag = cell.tagName.toLowerCase();
+      if (cellTag !== "td" && cellTag !== "th") continue;
+      if (cell === target || cell.contains(target)) continue;
+      const text = ownText(cell);
+      if (text && text.length <= MAX_SCOPE_TEXT_LENGTH) return text;
+    }
+    return null;
+  }
+
+  for (const child of Array.from(container.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = (child.textContent || "").replace(/\s+/g, " ").trim();
+      if (text && text.length <= MAX_SCOPE_TEXT_LENGTH) return text;
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const childEl = child as Element;
+      if (childEl === target || childEl.contains(target)) continue;
+      const childRole = getImplicitRole(childEl);
+      if (childRole && INTERACTIVE_ROLES.has(childRole)) continue;
+      const text = ownText(childEl);
+      if (text && text.length <= MAX_SCOPE_TEXT_LENGTH) return text;
+    }
+  }
+  return null;
+}
+
+/**
+ * When a semantic spec for `el` matches multiple elements (e.g. a "Delete" button
+ * repeated in every table row), walks up ancestors looking for the nearest scoping
+ * container (test-id, named landmark/dialog, or row/listitem with distinguishing text)
+ * that makes the combined chained locator uniquely resolve to `el`.
+ */
+function buildChainedSpec(
+  el: Element,
+  childSpec: LocatorSpec,
+  doc: Document,
+  options: EngineOptions,
+): LocatorSpec | null {
+  if (childSpec.strategy === "css" || childSpec.strategy === "xpath" || childSpec.strategy === "chained") {
+    return null;
+  }
+
+  let ancestor = parentOrHost(el);
+  let depth = 0;
+  while (ancestor && depth < MAX_CHAIN_DEPTH) {
+    const tag = ancestor.tagName.toLowerCase();
+    if (tag === "body" || tag === "html") break;
+
+    const scopes: Array<{ parent: LocatorSpec; parentHasText?: string }> = [];
+
+    const testId = ancestor.getAttribute(options.testIdAttribute);
+    if (testId) {
+      scopes.push({ parent: { strategy: "testId", attribute: options.testIdAttribute, value: testId } });
+    }
+
+    const role = getImplicitRole(ancestor);
+    if (role && CONTAINER_ROLES.has(role) && isExposedToAccessibilityTree(ancestor)) {
+      const ariaName = explicitAriaName(ancestor, doc);
+      if (ariaName && ariaName.length <= MAX_SCOPE_TEXT_LENGTH) {
+        scopes.push({ parent: { strategy: "role", role, name: ariaName, exact: false } });
+      }
+      if (TEXT_FILTER_CONTAINER_ROLES.has(role)) {
+        const text = extractDistinguishingText(ancestor, el);
+        if (text) {
+          scopes.push({
+            parent: { strategy: "role", role, exact: false },
+            parentHasText: text,
+          });
+        }
+      }
+    }
+
+    for (const scope of scopes) {
+      const chained: LocatorSpec = {
+        strategy: "chained",
+        parent: scope.parent,
+        ...(scope.parentHasText ? { parentHasText: scope.parentHasText } : {}),
+        child: childSpec,
+      };
+      const matches = matchLocator(doc, chained);
+      if (matches.length === 1 && matches[0] === el) return chained;
+    }
+
+    ancestor = parentOrHost(ancestor);
+    depth += 1;
+  }
+
+  return null;
+}
+
+/** Builds a concise, stable CSS selector for an `<iframe>` element inside its parent document. */
+export function buildFrameSelector(frameEl: Element, testIdAttribute: string): string {
+  const doc = frameEl.ownerDocument;
+  const isUnique = (selector: string): boolean => deepQuerySelectorAll(doc, selector).length === 1;
+
+  const testId = frameEl.getAttribute(testIdAttribute);
+  if (testId) {
+    const sel = `[${cssEscape(testIdAttribute)}="${cssStringEscape(testId)}"]`;
+    if (isUnique(sel)) return sel;
+  }
+
+  for (const attr of ["title", "name"]) {
+    const val = frameEl.getAttribute(attr);
+    if (val?.trim()) {
+      const sel = `iframe[${attr}="${cssStringEscape(val.trim())}"]`;
+      if (isUnique(sel)) return sel;
+    }
+  }
+
+  if (frameEl.id) {
+    const sel = `#${cssEscape(frameEl.id)}`;
+    if (isUnique(sel)) return sel;
+  }
+
+  const src = frameEl.getAttribute("src");
+  if (src?.trim() && !src.startsWith("data:") && src.length <= 120) {
+    const sel = `iframe[src="${cssStringEscape(src.trim())}"]`;
+    if (isUnique(sel)) return sel;
+  }
+
+  return buildCssSelector(frameEl, doc);
+}
+
 function specKey(spec: LocatorSpec): string {
   return JSON.stringify(spec);
 }
 
 /** Builds a fresh candidate from a spec — the single place match-derived fields are computed, so a live re-check or an exact-toggle can recompute a candidate without duplicating this logic (and risking it drifting out of sync, as happened with the hasHiddenMatch check). */
-function buildCandidate(spec: LocatorSpec, doc: Document): LocatorCandidate {
+function buildCandidate(spec: LocatorSpec, doc: Document, frameSelectors?: string[]): LocatorCandidate {
   const matches = matchLocator(doc, spec);
+  const frames = frameSelectors && frameSelectors.length > 0 ? frameSelectors : undefined;
   return {
     spec,
     matchCount: matches.length,
@@ -370,38 +542,71 @@ function buildCandidate(spec: LocatorSpec, doc: Document): LocatorCandidate {
     // CSS-hidden only (display:none/visibility:hidden) — this is what makes an
     // element non-actionable for Playwright regardless of locator strategy.
     // aria-hidden alone does NOT belong here: it's a common, intentional
-    // pattern on visible decorative icons, and only affects accessibility-tree
+    // pattern on visible decorative elements, and only affects accessibility-tree
     // based strategies (role/label), which already filter it out themselves.
     hasHiddenMatch: matches.some((match) => !isCssVisible(match)),
     brittleness: assessBrittleness(spec),
-    csharp: toCSharp(spec),
-    typescript: toTypeScript(spec),
+    ...(frames ? { frameSelectors: frames } : {}),
+    csharp: toCSharp(spec, frames),
+    typescript: toTypeScript(spec, frames),
   };
 }
 
 /**
  * Fills the panel's `MAX_CANDIDATES` slots per docs/LOCATOR_STRATEGY.md §2
  * ("Filling the panel"): unique candidates first, in precedence order, then
- * non-unique ones (also in precedence order) only for whatever slots are left. A
- * plain "first three by precedence" cut could hide the only locator that actually
- * resolves to one element (typically test-id or css) behind three ambiguous ones.
+ * non-unique ones (also in precedence order) only for whatever slots are left.
+ *
+ * When a semantic spec (role/label/placeholder/altText/title/text/testId) is
+ * ambiguous (2+ matches), we also try scoping it to an unambiguous ancestor
+ * container (chained disambiguation) ahead of CSS/XPath fallbacks.
  */
-function buildCandidateList(specs: LocatorSpec[], doc: Document): LocatorCandidate[] {
+function buildCandidateList(
+  specs: LocatorSpec[],
+  target: Element,
+  doc: Document,
+  options: EngineOptions,
+): LocatorCandidate[] {
   const seen = new Set<string>();
   const unique: LocatorCandidate[] = [];
   const nonUnique: LocatorCandidate[] = [];
+  const ambiguousSemantic: LocatorSpec[] = [];
+  let triedChaining = false;
 
-  for (const spec of specs) {
+  const pushSpec = (spec: LocatorSpec): boolean => {
     const key = specKey(spec);
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return unique.length >= MAX_CANDIDATES;
     seen.add(key);
 
-    const candidate = buildCandidate(spec, doc);
+    const candidate = buildCandidate(spec, doc, options.frameSelectors);
     (candidate.isUnique ? unique : nonUnique).push(candidate);
+    if (
+      !candidate.isUnique &&
+      candidate.matchCount > 1 &&
+      spec.strategy !== "css" &&
+      spec.strategy !== "xpath" &&
+      spec.strategy !== "chained"
+    ) {
+      ambiguousSemantic.push(spec);
+    }
+    return unique.length >= MAX_CANDIDATES;
+  };
 
-    // Later specs are lower precedence, so once every slot holds a unique
-    // candidate nothing further can displace one — skip their DOM sweeps.
-    if (unique.length >= MAX_CANDIDATES) break;
+  for (const spec of specs) {
+    // Before falling back to CSS/XPath, try disambiguating the highest-precedence
+    // ambiguous semantic spec via an enclosing container (row, listitem, region, testId).
+    if (!triedChaining && (spec.strategy === "css" || spec.strategy === "xpath") && ambiguousSemantic.length > 0) {
+      triedChaining = true;
+      for (const childSpec of ambiguousSemantic) {
+        const chained = buildChainedSpec(target, childSpec, doc, options);
+        if (chained) {
+          if (pushSpec(chained)) return unique.slice(0, MAX_CANDIDATES);
+          break;
+        }
+      }
+    }
+
+    if (pushSpec(spec)) break;
   }
 
   return [...unique, ...nonUnique].slice(0, MAX_CANDIDATES);
@@ -428,7 +633,7 @@ export function pickCandidates(
   const directSpecs = buildSpecs(el, doc, options);
   const { element: target, resolvedVia } = resolveTargetElement(el, doc, directSpecs);
   const specs = resolvedVia ? buildSpecs(target, doc, options) : directSpecs;
-  return { candidates: buildCandidateList(specs, doc), target, resolvedVia };
+  return { candidates: buildCandidateList(specs, target, doc, options), target, resolvedVia };
 }
 
 export function generateCandidates(
@@ -441,7 +646,7 @@ export function generateCandidates(
 
 /** Recomputes matchCount/isUnique/hasHiddenMatch (and codegen/brittleness, which are cheap) for a set of previously-generated candidates against the current DOM state — used to keep the panel from going stale on an SPA that re-renders after a pick. */
 export function refreshCandidates(candidates: LocatorCandidate[], doc: Document): LocatorCandidate[] {
-  return candidates.map((candidate) => buildCandidate(candidate.spec, doc));
+  return candidates.map((candidate) => buildCandidate(candidate.spec, doc, candidate.frameSelectors));
 }
 
 /** Flips the `exact` flag on the candidate at `index` (a no-op if that strategy has no `exact` field) and recomputes it against the current DOM. */
@@ -455,6 +660,6 @@ export function withExact(
   if (!target || !("exact" in target.spec)) return candidates;
   const nextSpec = { ...target.spec, exact } as LocatorSpec;
   const next = candidates.slice();
-  next[index] = buildCandidate(nextSpec, doc);
+  next[index] = buildCandidate(nextSpec, doc, target.frameSelectors);
   return next;
 }

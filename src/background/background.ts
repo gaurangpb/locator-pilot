@@ -27,7 +27,19 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
+const RELAY_TO_TOP_TYPES = new Set(["element-picked", "find-result", "candidates-updated"]);
+const BROADCAST_TYPES = new Set([
+  "activate-picker",
+  "deactivate-picker",
+  "find-locator",
+  "clear-live-recheck",
+  "recompute-exact",
+]);
+
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
+  if (sender.id !== chrome.runtime.id) return;
+  if (!message || typeof message !== "object") return;
+
   if (message.type === "open-options") {
     void chrome.runtime.openOptionsPage();
     return;
@@ -37,6 +49,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
   if (!tabId) return;
 
   if (message.type === "relay-to-top") {
+    if (!message.message || !RELAY_TO_TOP_TYPES.has(message.message.type)) return;
     // A sub-frame's result for the panel, which lives in the top frame. Routed
     // through here (rather than window.postMessage) so the page can neither read
     // it nor forge one: only this extension's own scripts can reach this listener.
@@ -48,5 +61,6 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
 
   if (message.type !== "broadcast") return;
   const payload = (message as BroadcastMessage).payload;
+  if (!payload || !BROADCAST_TYPES.has(payload.type)) return;
   void sendToTab(tabId, payload);
 });

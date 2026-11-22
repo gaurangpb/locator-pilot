@@ -83,7 +83,17 @@ the resolved element ([ui.ts](../src/content/ui.ts),
    the app was instrumented for it. Deliberately ranked below the accessible-first
    strategies above — this nudges toward accessible markup and matches Playwright's
    own documented preference order.
-7. `css` — last resort, and only ever built from stable signals, tried in this order:
+7. `chained` — automatic disambiguation when a semantic strategy above (`role`,
+   `label`, `placeholder`, `altText`, `title`, `text`, `testId`) matches multiple
+   elements on the page (e.g. a "Delete" button repeated in every table row or list
+   item). Walks up enclosing ancestors (bounded depth, crossing shadow roots) for the
+   nearest scoping container — a `testId` ancestor, a named landmark/dialog/region,
+   or a `row`/`listitem`/`article` narrowed with `.filter({ hasText })` — and emits
+   the first chain that uniquely resolves to the target element, ahead of CSS/XPath
+   fallbacks.
+   - **Status: implemented** — `buildChainedSpec` in
+     [locatorEngine.ts](../src/lib/locatorEngine.ts).
+8. `css` — last resort, and only ever built from stable signals, tried in this order:
    `#id` → a single distinguishing non-state attribute (`[name=]`, `[type=]`,
    `[value=]`, `[href=]`, …) → non-state classes → tag + `nth-of-type` path.
    - **Never include a class that encodes transient state**
@@ -103,7 +113,7 @@ the resolved element ([ui.ts](../src/content/ui.ts),
      `sdps-card[value="Save for retirement"]` — short, stable, and (unlike the §1
      descendant resolution) targets the actual visible card rather than its
      screen-reader-only radio.
-8. `xpath` — absolute last resort; already flagged brittle by `assessBrittleness`.
+9. `xpath` — absolute last resort; already flagged brittle by `assessBrittleness`.
 
 ### Filling the panel
 

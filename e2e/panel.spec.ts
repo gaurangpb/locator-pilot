@@ -121,8 +121,8 @@ test.describe("docked panel", () => {
     await panel(page).getByRole("button", { name: "Pick an element" }).click();
     await page.frameLocator("iframe").getByRole("button", { name: "Framed action" }).click();
 
-    await expect(panel(page).locator(".lp-results .lp-code").first()).toContainText(
-      "getByRole('button', { name: 'Framed action' })",
+    await expect(panel(page).locator(".lp-results .lp-code").first()).toHaveText(
+      `page.frameLocator('iframe[src="/frame.html"]').getByRole('button', { name: 'Framed action' })`,
     );
   });
 });

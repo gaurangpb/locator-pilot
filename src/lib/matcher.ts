@@ -1,6 +1,6 @@
 import { getAccessibleName, getImplicitRole, isExposedToAccessibilityTree } from "./accessibility";
 import { cssEscape } from "./cssEscape";
-import { deepEvaluateXPath, deepQueryAll, deepQuerySelectorAll } from "./domQuery";
+import { deepEvaluateXPath, deepQueryAll, deepQuerySelectorAll, isDeepDescendant } from "./domQuery";
 import type { LocatorSpec } from "./types";
 
 function normalize(text: string): string {
@@ -140,13 +140,14 @@ function matchByText(doc: Document, text: TextPattern, exact: boolean): Element[
 }
 
 function matchByTestId(doc: Document, attribute: string, value: TextPattern): Element[] {
+  const escapedAttr = cssEscape(attribute);
   if (typeof value !== "string") {
-    return deepQuerySelectorAll(doc, `[${attribute}]`).filter((el) => {
+    return deepQuerySelectorAll(doc, `[${escapedAttr}]`).filter((el) => {
       value.lastIndex = 0;
       return value.test(el.getAttribute(attribute) ?? "");
     });
   }
-  return deepQuerySelectorAll(doc, `[${attribute}="${cssEscape(value)}"]`);
+  return deepQuerySelectorAll(doc, `[${escapedAttr}="${cssEscape(value)}"]`);
 }
 
 /**
@@ -172,6 +173,15 @@ export function matchLocator(doc: Document, spec: LocatorSpec, pattern?: RegExp)
       return matchByText(doc, pattern ?? spec.text, spec.exact);
     case "testId":
       return matchByTestId(doc, spec.attribute, pattern ?? spec.value);
+    case "chained": {
+      let parents = matchLocator(doc, spec.parent);
+      if (spec.parentHasText !== undefined) {
+        parents = parents.filter((el) => textMatches(renderedText(el), spec.parentHasText!, false));
+      }
+      if (parents.length === 0) return [];
+      const children = matchLocator(doc, spec.child);
+      return children.filter((child) => parents.some((parent) => isDeepDescendant(parent, child)));
+    }
     case "css":
       return deepQuerySelectorAll(doc, spec.selector);
     case "xpath":

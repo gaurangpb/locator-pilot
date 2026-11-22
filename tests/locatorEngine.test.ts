@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { generateCandidates, pickCandidates, refreshCandidates, withExact } from "../src/lib/locatorEngine";
+import {
+  buildFrameSelector,
+  generateCandidates,
+  pickCandidates,
+  refreshCandidates,
+  withExact,
+} from "../src/lib/locatorEngine";
 import { DEFAULT_TEST_ID_ATTRIBUTE } from "../src/lib/types";
 
 function setBody(html: string): Document {
@@ -424,5 +430,116 @@ describe("candidate slots prefer unique locators", () => {
     `);
     const candidates = generateCandidates(doc.getElementById("email")!, options, doc);
     expect(candidates.map((c) => c.spec.strategy)).toEqual(["role", "label", "placeholder"]);
+  });
+});
+
+describe("chained disambiguation", () => {
+  const options = { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE };
+
+  it("scopes an ambiguous table-row button via row + filter(hasText)", () => {
+    const doc = setBody(`
+      <table>
+        <tbody>
+          <tr><td>Apples</td><td>3</td><td><button>Delete</button></td></tr>
+          <tr><td>Pears</td><td>1</td><td><button>Delete</button></td></tr>
+          <tr><td>Plums</td><td>6</td><td><button id="target">Delete</button></td></tr>
+        </tbody>
+      </table>
+    `);
+    const target = doc.getElementById("target")!;
+    target.removeAttribute("id");
+    const candidates = generateCandidates(target, options, doc);
+
+    expect(candidates[0]?.spec.strategy).toBe("chained");
+    expect(candidates[0]?.isUnique).toBe(true);
+    expect(candidates[0]?.brittleness.level).toBe("robust");
+    expect(candidates[0]?.typescript).toBe(
+      "page.getByRole('row').filter({ hasText: 'Plums' }).getByRole('button', { name: 'Delete' })",
+    );
+  });
+
+  it("scopes an ambiguous list-item button via listitem + filter(hasText)", () => {
+    const doc = setBody(`
+      <ul>
+        <li>Apple <button>Add to cart</button></li>
+        <li>Banana <button id="target">Add to cart</button></li>
+      </ul>
+    `);
+    const target = doc.getElementById("target")!;
+    target.removeAttribute("id");
+    const candidates = generateCandidates(target, options, doc);
+
+    expect(candidates[0]?.spec.strategy).toBe("chained");
+    expect(candidates[0]?.typescript).toBe(
+      "page.getByRole('listitem').filter({ hasText: 'Banana' }).getByRole('button', { name: 'Add to cart' })",
+    );
+  });
+
+  it("scopes an ambiguous button via an enclosing test-id or named region", () => {
+    const doc = setBody(`
+      <section aria-label="Shipping"><button>Edit</button></section>
+      <section aria-label="Billing"><button id="target">Edit</button></section>
+    `);
+    const target = doc.getElementById("target")!;
+    target.removeAttribute("id");
+    const candidates = generateCandidates(target, options, doc);
+
+    expect(candidates[0]?.spec.strategy).toBe("chained");
+    expect(candidates[0]?.typescript).toBe(
+      "page.getByRole('region', { name: 'Billing' }).getByRole('button', { name: 'Edit' })",
+    );
+  });
+
+  it("still ranks a direct unique test-id ahead of chained disambiguation", () => {
+    const doc = setBody(`
+      <table>
+        <tbody>
+          <tr><td>Apples</td><td><button data-testid="delete-apples">Delete</button></td></tr>
+          <tr><td>Pears</td><td><button data-testid="delete-pears">Delete</button></td></tr>
+        </tbody>
+      </table>
+    `);
+    const target = doc.querySelector('[data-testid="delete-apples"]')!;
+    const candidates = generateCandidates(target, options, doc);
+
+    expect(candidates[0]?.spec.strategy).toBe("testId");
+    expect(candidates[1]?.spec.strategy).toBe("chained");
+  });
+});
+
+describe("frameLocator support", () => {
+  it("preserves frameSelectors across codegen, refreshCandidates, and withExact", () => {
+    const doc = setBody(`<button>Apply coupon</button>`);
+    const btn = doc.querySelector("button")!;
+    const options = { testIdAttribute: DEFAULT_TEST_ID_ATTRIBUTE, frameSelectors: ['iframe[title="Coupon form"]'] };
+
+    const candidates = generateCandidates(btn, options, doc);
+    expect(candidates[0]?.typescript).toBe(
+      `page.frameLocator('iframe[title="Coupon form"]').getByRole('button', { name: 'Apply coupon' })`,
+    );
+
+    const refreshed = refreshCandidates(candidates, doc);
+    expect(refreshed[0]?.typescript).toContain(`frameLocator('iframe[title="Coupon form"]')`);
+
+    const exact = withExact(candidates, 0, true, doc);
+    expect(exact[0]?.typescript).toBe(
+      `page.frameLocator('iframe[title="Coupon form"]').getByRole('button', { name: 'Apply coupon', exact: true })`,
+    );
+  });
+
+  it("builds stable iframe selectors in precedence order: testId > title > name > id > src", () => {
+    const doc = setBody(`
+      <iframe id="f1" data-testid="checkout-frame" title="Checkout" name="chk" src="/a.html"></iframe>
+      <iframe id="f2" title="Coupon form" src="/b.html"></iframe>
+      <iframe name="payment" src="/c.html"></iframe>
+      <iframe id="only-id" src="/d.html"></iframe>
+      <iframe src="/unique-src.html"></iframe>
+    `);
+    const iframes = doc.querySelectorAll("iframe");
+    expect(buildFrameSelector(iframes[0]!, "data-testid")).toBe('[data-testid="checkout-frame"]');
+    expect(buildFrameSelector(iframes[1]!, "data-testid")).toBe('iframe[title="Coupon form"]');
+    expect(buildFrameSelector(iframes[2]!, "data-testid")).toBe('iframe[name="payment"]');
+    expect(buildFrameSelector(iframes[3]!, "data-testid")).toBe("#only-id");
+    expect(buildFrameSelector(iframes[4]!, "data-testid")).toBe('iframe[src="/unique-src.html"]');
   });
 });
