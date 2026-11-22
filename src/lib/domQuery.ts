@@ -95,3 +95,13 @@ export function getRootForElement(el: Element): SearchRoot {
   const root = el.getRootNode();
   return root instanceof ShadowRoot ? root : el.ownerDocument;
 }
+
+/** True when `el` is strictly inside `ancestor`, crossing shadow-root boundaries on the way up. */
+export function isDeepDescendant(ancestor: Element, el: Element): boolean {
+  let node: Node | null = el.parentNode;
+  while (node) {
+    if (node === ancestor) return true;
+    node = node.nodeType === 11 && "host" in node ? (node as ShadowRoot).host : node.parentNode;
+  }
+  return false;
+}

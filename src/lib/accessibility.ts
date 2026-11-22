@@ -34,9 +34,12 @@ const IMPLICIT_ROLE_TAGS: Record<string, string> = {
   h6: "heading",
   img: "img",
   table: "table",
+  tr: "row",
   ul: "list",
   ol: "list",
   li: "listitem",
+  article: "article",
+  aside: "complementary",
   nav: "navigation",
   main: "main",
   header: "banner",
@@ -119,6 +122,10 @@ export function getImplicitRole(el: Element): string | null {
     // so getByRole('img') never matches it. Mirrors Playwright's getAriaRole, which
     // keeps the img role when a title, aria-label(ledby) or tabindex says otherwise.
     return null;
+  }
+
+  if (tag === "section") {
+    return el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby") ? "region" : null;
   }
 
   return IMPLICIT_ROLE_TAGS[tag] ?? null;
@@ -210,6 +217,7 @@ export function getAccessibleName(el: Element, doc: Document = el.ownerDocument)
     "h6",
     "option",
     "li",
+    "tr",
     "label",
     "summary",
   ]);

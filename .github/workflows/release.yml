@@ -7,15 +7,16 @@ on:
   push:
     tags: ["v*.*.*"]
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 26
           cache: npm
@@ -34,7 +35,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       - run: npm run pack
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: locator-pilot-zip
           path: locator-pilot.zip
@@ -48,15 +49,16 @@ jobs:
   publish-store:
     needs: build
     runs-on: ubuntu-latest
+    permissions: {}
     # Add required reviewers to this environment (repo Settings → Environments) to
     # get a manual "approve before it goes to the store" gate.
     environment: chrome-web-store
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 26
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: locator-pilot-zip
       - name: Upload to Chrome Web Store and submit for review

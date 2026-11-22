@@ -1,6 +1,6 @@
 import { addHistoryEntry, removeHistoryEntry, type HistoryEntry } from "../lib/history";
 import { PANEL_HOST_ID } from "../lib/domQuery";
-import { pickCandidates } from "../lib/locatorEngine";
+import { buildFrameSelector, pickCandidates } from "../lib/locatorEngine";
 import type { BroadcastMessage, ContentResponse, ExtensionMessage } from "../lib/messages";
 import { parseLocator } from "../lib/parser";
 import { evaluateQuery } from "../lib/query";
@@ -118,8 +118,30 @@ function main(): void {
     if (isTopFrame) broadcast({ type: "deactivate-picker" });
   }
 
+  function collectFrameSelectors(): string[] {
+    const selectors: string[] = [];
+    let win: Window = window;
+    while (win !== win.top) {
+      let frameEl: Element | null = null;
+      try {
+        frameEl = win.frameElement;
+      } catch {
+        // Cross-origin parent frame — cannot inspect the enclosing <iframe> element.
+        break;
+      }
+      if (!frameEl) break;
+      selectors.unshift(buildFrameSelector(frameEl, testIdAttribute));
+      win = win.parent;
+    }
+    return selectors;
+  }
+
   function onPicked(picked: Element): void {
-    const { candidates, target, resolvedVia } = pickCandidates(picked, { testIdAttribute });
+    const frameSelectors = collectFrameSelectors();
+    const { candidates, target, resolvedVia } = pickCandidates(picked, {
+      testIdAttribute,
+      ...(frameSelectors.length > 0 ? { frameSelectors } : {}),
+    });
     publishToTop({ type: "element-picked", candidates, resolvedVia });
     liveRecheck.start(candidates, resolvedVia);
 

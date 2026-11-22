@@ -9,8 +9,16 @@ export function normalizeLanguage(value: unknown): CodeLanguage {
   return value === "typescript" ? "typescript" : DEFAULT_LANGUAGE;
 }
 
+const VALID_ATTR_NAME_RE = /^[a-zA-Z_:][a-zA-Z0-9_.:-]*$/;
+
+export function isValidTestIdAttribute(value: string): boolean {
+  return VALID_ATTR_NAME_RE.test(value);
+}
+
 export function normalizeTestIdAttribute(value: unknown): string {
-  return typeof value === "string" && value.trim() ? value.trim() : DEFAULT_TEST_ID_ATTRIBUTE;
+  if (typeof value !== "string") return DEFAULT_TEST_ID_ATTRIBUTE;
+  const trimmed = value.trim();
+  return trimmed && isValidTestIdAttribute(trimmed) ? trimmed : DEFAULT_TEST_ID_ATTRIBUTE;
 }
 
 export function settingsFromStorage(stored: Record<string, unknown>): ExtensionSettings {

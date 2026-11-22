@@ -179,8 +179,9 @@
             <li><code>getByRole('button', { name: 'Delete' })</code>: <strong>3 matches</strong>, shown in amber.</li>
             <li>Pick the Apples or Pears Delete button: the unique <code>getByTestId('delete-apples')</code>
               (or <code>delete-pears</code>) comes first and the non-unique role isn't shown.</li>
-            <li>Pick the Plums Delete button, which has no test id: the fragile CSS/XPath paths are
-              unique, so they come first, and the 3-match role candidate comes last.</li>
+            <li>Pick the Plums Delete button, which has no test id: it's disambiguated automatically as
+              <code>getByRole('row').filter({ hasText: 'Plums' }).getByRole('button', { name: 'Delete' })</code>
+              (unique and robust, ahead of CSS/XPath).</li>
             <li><code>getByPlaceholder('Name')</code>: <strong>2 matches</strong>.
               The labelled one is also unique through <code>getByLabel('Billing name')</code>.</li>
           </ul>
@@ -308,7 +309,7 @@
         </p>
         <div class="expect"><template>
           <ul>
-            <li>Pick the iframe button: <code>getByTestId('apply-coupon')</code> or <code>getByRole('button', { name: 'Apply coupon' })</code></li>
+            <li>Pick the iframe button: <code>frameLocator('iframe[title="Coupon form"]').getByRole('button', { name: 'Apply coupon' })</code> (or <code>getByTestId('apply-coupon')</code>).</li>
             <li>Find <code>getByLabel('Coupon code')</code>: 1 match, highlighted inside the frame.</li>
             <li><code>frameLocator(…)</code> hops are dropped when pasted. Every frame is searched instead.</li>
           </ul>

@@ -37,4 +37,23 @@ describe("assessBrittleness", () => {
     const spec: LocatorSpec = { strategy: "xpath", expression: "//div[2]/span[1]" };
     expect(assessBrittleness(spec).level).toBe("fragile");
   });
+
+  it("treats chained row/listitem with parentHasText and named role child as robust", () => {
+    const spec: LocatorSpec = {
+      strategy: "chained",
+      parent: { strategy: "role", role: "row", exact: false },
+      parentHasText: "Plums",
+      child: { strategy: "role", role: "button", name: "Delete", exact: false },
+    };
+    expect(assessBrittleness(spec)).toEqual({ level: "robust", reasons: [] });
+  });
+
+  it("inherits the worse brittleness level in a chained spec", () => {
+    const spec: LocatorSpec = {
+      strategy: "chained",
+      parent: { strategy: "testId", attribute: "data-testid", value: "card" },
+      child: { strategy: "placeholder", text: "Name", exact: false },
+    };
+    expect(assessBrittleness(spec).level).toBe("medium");
+  });
 });

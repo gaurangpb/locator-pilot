@@ -44,6 +44,8 @@ function strategyLabel(strategy: LocatorCandidate["spec"]["strategy"]): string {
       return "Text";
     case "testId":
       return "Test ID";
+    case "chained":
+      return "Chained";
     case "css":
       return "CSS";
     case "xpath":
@@ -332,11 +334,19 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
     handlers.onFind(findInput.value);
   });
 
+  findInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handlers.onFind(findInput.value);
+    }
+  });
+
   csharpBtn.addEventListener("click", () => {
     if (currentLanguage === "csharp") return;
     currentLanguage = "csharp";
     syncLanguageButtons();
     renderResults();
+    renderHistory();
     handlers.onLanguageChange(currentLanguage);
   });
 
@@ -345,6 +355,7 @@ export function buildDockedPanel(language: CodeLanguage, handlers: DockedPanelHa
     currentLanguage = "typescript";
     syncLanguageButtons();
     renderResults();
+    renderHistory();
     handlers.onLanguageChange(currentLanguage);
   });
 

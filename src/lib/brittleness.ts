@@ -59,6 +59,21 @@ export function assessBrittleness(spec: LocatorSpec): BrittlenessResult {
       return spec.name ? robust() : medium(["role has no accessible name to disambiguate it"]);
     case "testId":
       return robust();
+    case "chained": {
+      // An unnamed container role (e.g. `row` or `listitem`) narrowed with `hasText`
+      // is idiomatic Playwright, not an "unnamed role" warning.
+      const parentResult =
+        spec.parent.strategy === "role" && !spec.parent.name && spec.parentHasText
+          ? robust()
+          : assessBrittleness(spec.parent);
+      const childResult = assessBrittleness(spec.child);
+      const rank = { robust: 0, medium: 1, fragile: 2 } as const;
+      const worst = rank[parentResult.level] >= rank[childResult.level] ? parentResult.level : childResult.level;
+      return {
+        level: worst,
+        reasons: [...parentResult.reasons, ...childResult.reasons],
+      };
+    }
     case "label":
       return robust();
     case "placeholder":

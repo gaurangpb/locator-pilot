@@ -193,7 +193,7 @@ Status legend: `[ ]` open, `[x]` done.
   stated count was checked against the built extension. The expectation notes render
   into closed shadow roots so the strings they quote don't add matches of their own.
   Linked from [README.md](README.md) and [docs/index.html](docs/index.html).
-  Follow-up: point the e2e suite at this page instead of inline fixtures.
+  E2E suite now runs directly against this page in [e2e/playground.spec.ts](e2e/playground.spec.ts).
 - [x] **"Find on page" and the live re-check counted the extension's own panel.** Found
   with the playground: `getByPlaceholder('Name')` reported 3 matches where Playwright
   finds 2. The third was the panel's find box, whose placeholder contains "name".

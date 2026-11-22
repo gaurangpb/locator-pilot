@@ -36,4 +36,44 @@ describe("codegen", () => {
     expect(toCSharp(spec)).toBe(`Page.Locator("xpath=//div[@id='x']")`);
     expect(toTypeScript(spec)).toBe(`page.locator('xpath=//div[@id=\\'x\\']')`);
   });
+
+  it("generates chained locators with and without parentHasText", () => {
+    const withFilter: LocatorSpec = {
+      strategy: "chained",
+      parent: { strategy: "role", role: "row", exact: false },
+      parentHasText: "Plums",
+      child: { strategy: "role", role: "button", name: "Delete", exact: false },
+    };
+    expect(toTypeScript(withFilter)).toBe(
+      "page.getByRole('row').filter({ hasText: 'Plums' }).getByRole('button', { name: 'Delete' })",
+    );
+    expect(toCSharp(withFilter)).toBe(
+      'Page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Plums" }).GetByRole(AriaRole.Button, new() { Name = "Delete" })',
+    );
+
+    const withoutFilter: LocatorSpec = {
+      strategy: "chained",
+      parent: { strategy: "testId", attribute: "data-testid", value: "billing-card" },
+      child: { strategy: "role", role: "button", name: "Edit", exact: false },
+    };
+    expect(toTypeScript(withoutFilter)).toBe(
+      "page.getByTestId('billing-card').getByRole('button', { name: 'Edit' })",
+    );
+    expect(toCSharp(withoutFilter)).toBe(
+      'Page.GetByTestId("billing-card").GetByRole(AriaRole.Button, new() { Name = "Edit" })',
+    );
+  });
+
+  it("prepends frameLocator() calls when frameSelectors are provided", () => {
+    const spec: LocatorSpec = { strategy: "role", role: "button", name: "Apply coupon", exact: false };
+    expect(toTypeScript(spec, ['iframe[title="Coupon form"]'])).toBe(
+      `page.frameLocator('iframe[title="Coupon form"]').getByRole('button', { name: 'Apply coupon' })`,
+    );
+    expect(toCSharp(spec, ['iframe[title="Coupon form"]'])).toBe(
+      `Page.FrameLocator("iframe[title=\\"Coupon form\\"]").GetByRole(AriaRole.Button, new() { Name = "Apply coupon" })`,
+    );
+    expect(toTypeScript(spec, ["#outer", 'iframe[name="inner"]'])).toBe(
+      `page.frameLocator('#outer').frameLocator('iframe[name="inner"]').getByRole('button', { name: 'Apply coupon' })`,
+    );
+  });
 });
