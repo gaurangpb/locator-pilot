@@ -184,6 +184,27 @@ Status legend: `[ ]` open, `[x]` done.
 - [x] **Escape only cancels picking, not the panel.** Escape with focus in the panel
   now closes it; while picking, the first Escape still only cancels the pick
   ([content.ts](src/content/content.ts), [picker.ts](src/content/picker.ts)).
+- [x] **No stable page for manual testing.** Added a static playground served by
+  GitHub Pages at [docs/playground/index.html](docs/playground/index.html) (plus
+  [frame.html](docs/playground/frame.html) for the iframe case). It has 13 sections
+  (basics, duplicates, hidden, ARIA names, alt/title, shadow DOM, iframe,
+  custom-element card, generated and transient classes, live re-render, chained,
+  regex, plus a note on the cross-origin gap), each with its expected result. Every
+  stated count was checked against the built extension. The expectation notes render
+  into closed shadow roots so the strings they quote don't add matches of their own.
+  Linked from [README.md](README.md) and [docs/index.html](docs/index.html).
+  Follow-up: point the e2e suite at this page instead of inline fixtures.
+- [x] **"Find on page" and the live re-check counted the extension's own panel.** Found
+  with the playground: `getByPlaceholder('Name')` reported 3 matches where Playwright
+  finds 2. The third was the panel's find box, whose placeholder contains "name".
+  After a re-render, a picked text candidate went from 1 match to 3 with a Hidden
+  badge, because the panel by then showed that same text in its results. The deep
+  searches walked every open shadow root, the panel's included. Every search in
+  [domQuery.ts](src/lib/domQuery.ts) (`deepQueryAll`, `deepQuerySelectorAll`,
+  `deepEvaluateXPath`) now skips the `PANEL_HOST_ID` element and its shadow root,
+  and [content.ts](src/content/content.ts) mounts the panel under that shared id.
+  Tests are in [domQuery.test.ts](tests/domQuery.test.ts) and
+  [matcher.test.ts](tests/matcher.test.ts).
 - [ ] **Perf watch-item, not yet a problem.** ~36ms per click on an 8,800-node
   synthetic page (several full-DOM sweeps: one per candidate for match-count, plus
   the CSS uniqueness-shortening loop's own per-segment queries). No caching between

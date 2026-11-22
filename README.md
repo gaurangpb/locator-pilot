@@ -78,6 +78,12 @@ iframe picks. First run needs a browser: `npx playwright install chromium`.
 CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs all of the above on
 every push and pull request.
 
+For manual testing there's a playground page with one section per hard case (hidden
+elements, shadow DOM, iframes, custom-element cards, transient classes, live
+re-renders, chained and regex locators), each listing the expected result:
+https://gaurangpb.github.io/locator-pilot/playground/ (source:
+[docs/playground/](./docs/playground/)). It's also linked from the docs home page.
+
 ## Known limitations / things to verify
 
 - **Cross-origin iframes**: same-origin iframes and shadow DOM are fully supported.

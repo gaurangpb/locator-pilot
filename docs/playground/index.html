@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Locator Playground</title>
+    <meta
+      name="description"
+      content="A static test page for Locator Pilot: one section per hard locator case, each with the expected result."
+    />
+    <style>
+      :root {
+        --bg: #0f1424;
+        --surface: #182036;
+        --border: #2a3352;
+        --text: #e8ecf3;
+        --muted: #9aa3b8;
+        --soft: #cfd5e2;
+        --accent: #2dd4af;
+        --warn: #f5b041;
+        --code-bg: #0b1020;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 16px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main { max-width: 860px; margin: 0 auto; padding: 48px 16px 80px; }
+      header h1 { font-size: 30px; margin: 0 0 8px; }
+      .lede { color: var(--soft); margin: 0 0 12px; }
+      a { color: var(--accent); }
+      nav.toc { columns: 2; column-gap: 24px; font-size: 14px; margin: 20px 0 8px; padding-left: 18px; }
+      nav.toc li { break-inside: avoid; }
+      @media (max-width: 560px) { nav.toc { columns: 1; } }
+
+      section.case {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px 20px;
+        margin: 24px 0;
+      }
+      section.case > h2 { font-size: 19px; margin: 0 0 4px; }
+      .tests { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+      .expect {
+        font-size: 14px;
+        color: var(--soft);
+        border-left: 3px solid var(--accent);
+        padding: 4px 0 4px 12px;
+        margin: 0 0 14px;
+      }
+      .expect ul { margin: 4px 0 0; padding-left: 18px; }
+      .demo {
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .demo.stack { flex-direction: column; align-items: stretch; }
+      code, pre {
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        background: var(--code-bg);
+        border-radius: 4px;
+      }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { padding: 10px 12px; overflow-x: auto; margin: 8px 0 0; }
+
+      button, .btn {
+        font: inherit;
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--accent);
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+      }
+      input, select, textarea {
+        font: inherit;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #3a4566;
+        background: var(--bg);
+        color: inherit;
+      }
+      label { display: inline-flex; gap: 8px; align-items: center; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+      .gap { color: var(--warn); }
+      iframe { width: 100%; height: 120px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+
+      /* Custom card case */
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+      }
+      demo-card { display: block; }
+      demo-card label {
+        display: block; width: 220px; padding: 12px 14px; cursor: pointer;
+        border: 2px solid var(--border); border-radius: 10px;
+      }
+      demo-card.demo-card--selected label { border-color: var(--accent); }
+      demo-card .card-title { font-weight: 600; display: block; }
+      demo-card .card-sub { color: var(--muted); font-size: 13px; }
+
+      footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Locator Playground</h1>
+        <p class="lede">
+          A test page for <a href="../">Locator Pilot</a>. Each section is one hard case for locator
+          generation, with what it checks and the result the extension should give. Open the panel,
+          pick the elements in a section, then paste the listed locators into "Find on page".
+        </p>
+        <p class="tests">
+          Static page, no network requests, nothing stored. Assumes the default test-id attribute
+          (<code>data-testid</code>).
+        </p>
+        <nav aria-label="Cases">
+          <ol class="toc">
+            <li><a href="#basics">Basic strategies</a></li>
+            <li><a href="#duplicates">Duplicate names</a></li>
+            <li><a href="#hidden">Hidden elements</a></li>
+            <li><a href="#aria-names">aria-label / aria-labelledby</a></li>
+            <li><a href="#alt-title">alt and title</a></li>
+            <li><a href="#shadow">Shadow DOM</a></li>
+            <li><a href="#iframe">Same-origin iframe</a></li>
+            <li><a href="#custom-card">Custom-element card</a></li>
+            <li><a href="#css-classes">Generated and transient classes</a></li>
+            <li><a href="#live">Live re-render</a></li>
+            <li><a href="#chained">Chained locators</a></li>
+            <li><a href="#regex">Regex arguments</a></li>
+            <li><a href="#cross-origin">Cross-origin iframe (gap)</a></li>
+          </ol>
+        </nav>
+      </header>
+
+      <!-- 1 -->
+      <section class="case" id="basics" aria-labelledby="basics-h">
+        <h2 id="basics-h">1. Basic strategies</h2>
+        <p class="tests">One element per main strategy, each with a unique name.</p>
+        <div class="expect"><template>
+          Expect one unique, robust top candidate per element:
+          <ul>
+            <li>Button: <code>getByRole('button', { name: 'Save draft' })</code></li>
+            <li>Link: <code>getByRole('link', { name: 'Read the docs' })</code></li>
+            <li>Email input: <code>getByLabel('Email address')</code> or <code>getByRole('textbox', { name: 'Email address' })</code></li>
+            <li>Search input: <code>getByPlaceholder('Search orders')</code></li>
+            <li>Div: <code>getByTestId('order-total')</code></li>
+            <li>Paragraph: <code>getByText('Free shipping on orders over $50')</code></li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <button type="button">Save draft</button>
+          <a href="#basics">Read the docs</a>
+          <label>Email address <input type="email" id="basic-email" /></label>
+          <input type="search" placeholder="Search orders" />
+          <div data-testid="order-total">Total: $42.00</div>
+          <p style="margin: 0">Free shipping on orders over $50</p>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section class="case" id="duplicates" aria-labelledby="dup-h">
+        <h2 id="dup-h">2. Duplicate names</h2>
+        <p class="tests">
+          Same button name in every row, and two inputs with the same placeholder. Tests the
+          non-unique styling and that unique candidates fill the panel first.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li><code>getByRole('button', { name: 'Delete' })</code>: <strong>3 matches</strong>, shown in amber.</li>
+            <li>Pick the Apples or Pears Delete button: the unique <code>getByTestId('delete-apples')</code>
+              (or <code>delete-pears</code>) comes first and the non-unique role isn't shown.</li>
+            <li>Pick the Plums Delete button, which has no test id: the fragile CSS/XPath paths are
+              unique, so they come first, and the 3-match role candidate comes last.</li>
+            <li><code>getByPlaceholder('Name')</code>: <strong>2 matches</strong>.
+              The labelled one is also unique through <code>getByLabel('Billing name')</code>.</li>
+          </ul>
+        </template></div>
+        <div class="demo stack">
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>Apples</td><td>3</td><td><button type="button" data-testid="delete-apples">Delete</button></td></tr>
+              <tr><td>Pears</td><td>1</td><td><button type="button" data-testid="delete-pears">Delete</button></td></tr>
+              <tr><td>Plums</td><td>6</td><td><button type="button">Delete</button></td></tr>
+            </tbody>
+          </table>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap">
+            <input type="text" placeholder="Name" />
+            <label>Billing name <input type="text" placeholder="Name" /></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section class="case" id="hidden" aria-labelledby="hidden-h">
+        <h2 id="hidden-h">3. Hidden elements</h2>
+        <p class="tests">
+          Buttons hidden three ways. Playwright's <code>getByRole</code> skips elements outside the
+          accessibility tree, so role locators for these should find 0.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li><code>getByRole('button', { name: 'Hidden by display' })</code>: <strong>0 matches</strong></li>
+            <li><code>getByRole('button', { name: 'Hidden by visibility' })</code>: <strong>0 matches</strong></li>
+            <li><code>getByRole('button', { name: 'Hidden by aria' })</code>: <strong>0 matches</strong></li>
+            <li><code>getByTestId('hidden-display')</code>: 1 match. Test-id locators don't filter by visibility.</li>
+            <li>Pick <code>Export report</code>. A <code>display:none</code> copy sits next to it, so
+              <code>getByRole('button', { name: 'Export report' })</code> shows 1 match, while the
+              text candidate shows 2 matches with the orange <strong>Hidden</strong> badge.</li>
+            <li>Pick the <code>aria-hidden</code> button (drawn last below): no role candidate, and no
+              Hidden badge either. The badge only flags CSS-hidden matches.</li>
+            <li>The visible <code>Shown button</code> picks normally, with no badge.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <button type="button">Shown button</button>
+          <button type="button">Export report</button>
+          <button type="button" style="display: none">Export report</button>
+          <button type="button" data-testid="hidden-display" style="display: none">Hidden by display</button>
+          <button type="button" data-testid="hidden-visibility" style="visibility: hidden">Hidden by visibility</button>
+          <button type="button" data-testid="hidden-aria" aria-hidden="true">Hidden by aria</button>
+        </div>
+        <p class="tests" style="margin: 10px 0 0">
+          The <code>aria-hidden</code> button is still drawn on screen (last one above), so you can pick
+          it. The visibility-hidden one keeps its space but can't be clicked.
+        </p>
+      </section>
+
+      <!-- 4 -->
+      <section class="case" id="aria-names" aria-labelledby="aria-h">
+        <h2 id="aria-h">4. aria-label and aria-labelledby</h2>
+        <p class="tests">Names that come from ARIA instead of visible text or a &lt;label&gt;.</p>
+        <div class="expect"><template>
+          <ul>
+            <li>Icon button: <code>getByRole('button', { name: 'Close dialog' })</code> and <code>getByLabel('Close dialog')</code></li>
+            <li>Quantity input: <code>getByLabel('Shipping quantity')</code>. Its name joins two ids.</li>
+            <li><code>getByText('Close dialog')</code>: <strong>0 matches</strong>. The name isn't text content.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <button type="button" aria-label="Close dialog">✕</button>
+          <span id="qty-a">Shipping</span>
+          <span id="qty-b">quantity</span>
+          <input type="number" aria-labelledby="qty-a qty-b" value="1" min="1" style="width: 80px" />
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section class="case" id="alt-title" aria-labelledby="alt-h">
+        <h2 id="alt-h">5. alt and title</h2>
+        <p class="tests">
+          <code>getByAltText</code> and <code>getByTitle</code> candidates, plus a decorative image
+          with an empty alt.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li>Logo: <code>getByAltText('Company logo')</code>, offered alongside <code>getByRole('img', { name: 'Company logo' })</code></li>
+            <li>Status dot: <code>getByTitle('Server online')</code></li>
+            <li>Decorative image (<code>alt=""</code>): <strong>no</strong> <code>img</code> role candidate. Expect a CSS fallback.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <img src="../assets/icon128.png" alt="Company logo" width="48" height="48" />
+          <span title="Server online" style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--accent)"></span>
+          <img src="../assets/icon128.png" alt="" width="32" height="32" class="decor" style="opacity: 0.5" />
+        </div>
+      </section>
+
+      <!-- 6 -->
+      <section class="case" id="shadow" aria-labelledby="shadow-h">
+        <h2 id="shadow-h">6. Shadow DOM</h2>
+        <p class="tests">
+          A button inside an open shadow root, and another two shadow roots deep. Playwright's
+          role, text and CSS engines go through open shadow roots. Its XPath engine doesn't.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li><code>getByRole('button', { name: 'Shadow subscribe' })</code>: 1 match</li>
+            <li><code>getByRole('button', { name: 'Nested shadow action' })</code>: 1 match</li>
+            <li><code>getByTestId('nested-shadow-btn')</code>: 1 match</li>
+            <li><code>xpath=//button[text()='Shadow subscribe']</code>: <strong>0 matches</strong>. XPath doesn't go into shadow roots.</li>
+            <li>The light-DOM <code>Light subscribe</code> button is unaffected.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <button type="button">Light subscribe</button>
+          <shadow-host-one></shadow-host-one>
+          <shadow-host-outer></shadow-host-outer>
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section class="case" id="iframe" aria-labelledby="iframe-h">
+        <h2 id="iframe-h">7. Same-origin iframe</h2>
+        <p class="tests">
+          A child page served from the same origin. Picks and "Find on page" should work inside it,
+          with results shown in the top-level panel.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li>Pick the iframe button: <code>getByTestId('apply-coupon')</code> or <code>getByRole('button', { name: 'Apply coupon' })</code></li>
+            <li>Find <code>getByLabel('Coupon code')</code>: 1 match, highlighted inside the frame.</li>
+            <li><code>frameLocator(…)</code> hops are dropped when pasted. Every frame is searched instead.</li>
+          </ul>
+        </template></div>
+        <iframe src="./frame.html" title="Coupon form"></iframe>
+      </section>
+
+      <!-- 8 -->
+      <section class="case" id="custom-card" aria-labelledby="card-h">
+        <h2 id="card-h">8. Custom-element card with a screen-reader-only radio</h2>
+        <p class="tests">
+          A role-less custom element wraps a <code>&lt;label&gt;</code> (the whole visible card) and a
+          radio with class <code>sr-only</code>. The selected card gets the transient classes
+          <code>demo-card--selected</code> and <code>hydrated</code>. Click a card to move the selection.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li>Picking a card should <strong>not</strong> resolve to the sr-only radio.</li>
+            <li>Click the card's border area (the <code>&lt;label&gt;</code>): the CSS candidate is anchored on a stable attribute, <code>demo-card[value="Save for retirement"] &gt; label</code>.</li>
+            <li>No candidate may include <code>.demo-card--selected</code> or <code>.hydrated</code>. Pick the selected card, select another, and the candidate should still match.</li>
+            <li><code>getByRole('radio', { name: 'Save for retirement' })</code> still matches 1 when pasted. The radio is in the accessibility tree.</li>
+          </ul>
+        </template></div>
+        <div class="demo" role="radiogroup" aria-label="Savings goal">
+          <demo-card class="demo-card demo-card--selected hydrated" value="Save for retirement">
+            <label>
+              <input class="sr-only" type="radio" name="goal" value="retirement" checked />
+              <span class="card-title">Save for retirement</span>
+              <span class="card-sub">Long-term</span>
+            </label>
+          </demo-card>
+          <demo-card class="demo-card hydrated" value="Build an emergency fund">
+            <label>
+              <input class="sr-only" type="radio" name="goal" value="emergency" />
+              <span class="card-title">Build an emergency fund</span>
+              <span class="card-sub">Short-term</span>
+            </label>
+          </demo-card>
+        </div>
+      </section>
+
+      <!-- 9 -->
+      <section class="case" id="css-classes" aria-labelledby="css-h">
+        <h2 id="css-h">9. Generated and transient class names</h2>
+        <p class="tests">
+          Elements with no role, text or test id, so CSS is the only option. Their classes mix stable
+          names with CSS-in-JS hashes and state classes.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li>Yellow box: CSS keeps <code>.promo-banner</code> and drops <code>css-1q2w3e4</code>, <code>is-active</code> and <code>ng-star-inserted</code>.</li>
+            <li>Grey box: no stable classes, so expect an <code>:nth-of-type</code> path and a brittleness warning.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <div class="promo-banner css-1q2w3e4 is-active ng-star-inserted" style="width: 120px; height: 40px; background: var(--warn); border-radius: 6px"></div>
+          <div class="sc-a1b2c3 jsx-9f8e7d" style="width: 120px; height: 40px; background: var(--muted); border-radius: 6px"></div>
+        </div>
+      </section>
+
+      <!-- 10 -->
+      <section class="case" id="live" aria-labelledby="live-h">
+        <h2 id="live-h">10. Live re-render</h2>
+        <p class="tests">
+          Tests the live match-count re-check. The ticking button is replaced with a new node every
+          2 seconds. The toggle adds and removes a second <code>Refresh feed</code> button.
+        </p>
+        <div class="expect"><template>
+          <ul>
+            <li>Pick <code>Refresh feed</code> (1 match), then press <em>Add duplicate</em>. Within about half a second the count should change to <strong>2</strong> (amber). Press it again to go back to 1.</li>
+            <li>Pick the ticking button. <code>getByTestId('ticker')</code> stays at 1 match even though the node keeps being replaced.</li>
+          </ul>
+        </template></div>
+        <div class="demo">
+          <button type="button" id="refresh-a">Refresh feed</button>
+          <span id="dup-slot"></span>
+          <button type="button" id="toggle-dup" class="btn" style="border-style: dashed">Add duplicate</button>
+          <span id="ticker-slot"></span>
+        </div>
+      </section>
+
+      <!-- 11 -->
+      <section class="case" id="chained" aria-labelledby="chained-h">
+        <h2 id="chained-h">11. Chained locators</h2>
+        <p class="tests">A list where every item has the same button, so you need filters to pick one.</p>
+        <div class="expect"><template>
+          Paste each into "Find on page":
+          <pre>page.getByTestId('fruit-list').getByRole('listitem').filter({ hasText: 'Banana' }).getByRole('button')</pre>
+          → 1 match (Banana's button)
+          <pre>page.getByTestId('fruit-list').getByRole('button', { name: 'Add to cart' }).nth(2)</pre>
+          → 1 match (Cherry's button)
+          <pre>page.getByTestId('fruit-list').getByRole('listitem').filter({ hasNotText: 'Out of stock' })</pre>
+          → 2 matches
+          <pre>page.getByRole('button', { name: 'Add to cart' }).first().click()</pre>
+          → 1 match. The trailing <code>.click()</code> is skipped without an error.
+        </template></div>
+        <div class="demo stack">
+          <ul data-testid="fruit-list" style="margin: 0; padding-left: 18px">
+            <li>Apple <button type="button">Add to cart</button></li>
+            <li>Banana <button type="button">Add to cart</button></li>
+            <li>Cherry <em>(Out of stock)</em> <button type="button">Add to cart</button></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 12 -->
+      <section class="case" id="regex" aria-labelledby="regex-h">
+        <h2 id="regex-h">12. Regex arguments</h2>
+        <p class="tests">Text that changes case and has a number in it.</p>
+        <div class="expect"><template>
+          <pre>page.getByText(/order #\d+ confirmed/i)</pre>
+          → 1 match
+          <pre>Page.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^pay", RegexOptions.IgnoreCase) })</pre>
+          → 1 match (C#)
+          <pre>page.getByRole('heading', { name: /receipt/i })</pre>
+          → 1 match
+        </template></div>
+        <div class="demo">
+          <h3 style="margin: 0; font-size: 16px">Your Receipt</h3>
+          <span>ORDER #10492 Confirmed</span>
+          <button type="button">Pay now</button>
+        </div>
+      </section>
+
+      <!-- 13 -->
+      <section class="case" id="cross-origin" aria-labelledby="xo-h">
+        <h2 id="xo-h">13. Cross-origin iframe <span class="gap">(known gap)</span></h2>
+        <p class="tests">
+          GitHub Pages serves this whole site from one origin, so this page can't include a real
+          cross-origin iframe. We left the case out rather than fake one.
+        </p>
+        <div class="expect"><template>
+          To test it, embed this page from a second origin, for example a local server on another port
+          with <code>&lt;iframe src="https://gaurangpb.github.io/locator-pilot/playground/frame.html"&gt;</code>.
+          That frame is cross-origin to its parent. Picks inside it should still be relayed to the
+          top-level panel through the background worker.
+        </template></div>
+      </section>
+
+      <footer>
+        <a href="../">Locator Pilot</a> · <a href="../privacy.html">Privacy Policy</a> ·
+        <a href="https://github.com/gaurangpb/locator-pilot">Source</a>
+      </footer>
+    </main>
+
+    <script>
+      (() => {
+        // Expectation notes quote the same names the demos use, so they would show up as
+        // extra getByText / getByRole('listitem') matches. Each note lives in a <template>
+        // (not part of the DOM) and is rendered into a *closed* shadow root, which neither
+        // Playwright nor Locator Pilot looks inside. Still visible and copyable.
+        const noteCss =
+          "ul{margin:4px 0 0;padding-left:18px}" +
+          "code,pre{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace;background:var(--code-bg);border-radius:4px}" +
+          "code{padding:1px 5px;overflow-wrap:anywhere}" +
+          "pre{padding:10px 12px;overflow-x:auto;margin:8px 0 0}";
+        document.querySelectorAll(".expect > template").forEach((tpl) => {
+          const root = tpl.parentElement.attachShadow({ mode: "closed" });
+          const style = document.createElement("style");
+          style.textContent = noteCss;
+          root.append(style, tpl.content.cloneNode(true));
+        });
+
+        // 6. Shadow DOM hosts
+        customElements.define(
+          "shadow-host-one",
+          class extends HTMLElement {
+            connectedCallback() {
+              if (this.shadowRoot) return;
+              this.attachShadow({ mode: "open" }).innerHTML =
+                '<style>button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #2dd4af;background:transparent;color:#2dd4af;cursor:pointer}</style>' +
+                '<button type="button" data-testid="shadow-btn">Shadow subscribe</button>';
+            }
+          },
+        );
+        customElements.define(
+          "shadow-host-inner",
+          class extends HTMLElement {
+            connectedCallback() {
+              if (this.shadowRoot) return;
+              this.attachShadow({ mode: "open" }).innerHTML =
+                '<style>button{font:inherit;padding:6px 14px;border-radius:6px;border:1px dashed #2dd4af;background:transparent;color:#2dd4af;cursor:pointer}</style>' +
+                '<button type="button" data-testid="nested-shadow-btn">Nested shadow action</button>';
+            }
+          },
+        );
+        customElements.define(
+          "shadow-host-outer",
+          class extends HTMLElement {
+            connectedCallback() {
+              if (this.shadowRoot) return;
+              this.attachShadow({ mode: "open" }).innerHTML = "<shadow-host-inner></shadow-host-inner>";
+            }
+          },
+        );
+
+        // 8. Custom card selection (moves the transient --selected class)
+        const cards = document.querySelectorAll("demo-card");
+        cards.forEach((card) => {
+          card.querySelector("input").addEventListener("change", () => {
+            cards.forEach((c) => c.classList.toggle("demo-card--selected", c === card));
+          });
+        });
+
+        // 10. Live re-render
+        const dupSlot = document.getElementById("dup-slot");
+        const toggle = document.getElementById("toggle-dup");
+        toggle.addEventListener("click", () => {
+          if (dupSlot.firstChild) {
+            dupSlot.replaceChildren();
+            toggle.textContent = "Add duplicate";
+          } else {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = "Refresh feed";
+            dupSlot.append(b);
+            toggle.textContent = "Remove duplicate";
+          }
+        });
+
+        const tickerSlot = document.getElementById("ticker-slot");
+        let ticks = 0;
+        const renderTicker = () => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.dataset.testid = "ticker";
+          b.textContent = "Tick " + ticks++;
+          tickerSlot.replaceChildren(b);
+        };
+        renderTicker();
+        setInterval(renderTicker, 2000);
+      })();
+    </script>
+  </body>
+</html>
