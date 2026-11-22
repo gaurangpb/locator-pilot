@@ -5,6 +5,8 @@ Web Store listing. Releasing is described in [RELEASING.md](RELEASING.md).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-22
+
 ### Added
 - Automatic chained disambiguation: when a semantic locator matches multiple
   elements (e.g. repeated "Delete" buttons in a table or list), Locator Pilot
