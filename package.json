@@ -21,7 +21,7 @@
     "@types/chrome": "^0.3.7",
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
-    "jsdom": "^29.1.1",
+    "jsdom": "^31.0.1",
     "typescript": "^5.7.2",
     "vitest": "^5.1.0"
   }
