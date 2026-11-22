@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PANEL_HOST_ID } from "../src/lib/domQuery";
 import { matchLocator } from "../src/lib/matcher";
 
 function setBody(html: string): Document {
@@ -186,5 +187,23 @@ describe("matchLocator role strategy — names and decorative images", () => {
   it("does not treat an <img alt=\"\"> as role img", () => {
     const doc = setBody(`<img alt="" src="divider.png" /><img alt="Logo" src="logo.png" />`);
     expect(matchLocator(doc, { strategy: "role", role: "img", exact: false })).toHaveLength(1);
+  });
+});
+
+describe("matchLocator ignores the extension's own panel", () => {
+  it("doesn't count the panel's find box or result text as page matches", () => {
+    const doc = setBody(`<input placeholder="Name" /><p>Save for retirement</p>`);
+    const host = doc.createElement("div");
+    host.id = PANEL_HOST_ID;
+    host.attachShadow({ mode: "open" }).innerHTML = `
+      <textarea placeholder="e.g. page.getByRole('button', { name: 'Submit' })"></textarea>
+      <div class="lp-code">page.getByText('Save for retirement')</div>`;
+    doc.documentElement.appendChild(host);
+    try {
+      expect(matchLocator(doc, { strategy: "placeholder", text: "Name", exact: false })).toHaveLength(1);
+      expect(matchLocator(doc, { strategy: "text", text: "Save for retirement", exact: false })).toHaveLength(1);
+    } finally {
+      host.remove();
+    }
   });
 });

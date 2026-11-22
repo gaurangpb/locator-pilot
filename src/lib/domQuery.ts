@@ -10,11 +10,28 @@
 
 export type SearchRoot = Document | ShadowRoot;
 
+/** id of the element the content script mounts the docked panel (and highlight boxes) in. */
+export const PANEL_HOST_ID = "locator-pilot-host";
+
+/**
+ * The extension's own UI lives in an open shadow root on the page, so a plain deep walk
+ * would count the panel's find box, result cards and history as page matches (e.g. the
+ * find box's placeholder matching getByPlaceholder("Name")). Real Playwright never sees
+ * it, so every search here skips the host and everything inside it.
+ */
+function isPanelHost(el: Element): boolean {
+  return el.id === PANEL_HOST_ID;
+}
+
+function withoutPanelHost(elements: Iterable<Element>): Element[] {
+  return Array.from(elements).filter((el) => !isPanelHost(el));
+}
+
 function* walkRoots(root: SearchRoot): Generator<SearchRoot> {
   yield root;
   const all = root.querySelectorAll("*");
   for (const el of all) {
-    if (el.shadowRoot) {
+    if (el.shadowRoot && !isPanelHost(el)) {
       yield* walkRoots(el.shadowRoot);
     }
   }
@@ -24,7 +41,7 @@ export function deepQuerySelectorAll(root: SearchRoot, selector: string): Elemen
   const results: Element[] = [];
   for (const r of walkRoots(root)) {
     try {
-      results.push(...Array.from(r.querySelectorAll(selector)));
+      results.push(...withoutPanelHost(r.querySelectorAll(selector)));
     } catch {
       // invalid selector for this root — ignore and keep searching others
     }
@@ -35,7 +52,7 @@ export function deepQuerySelectorAll(root: SearchRoot, selector: string): Elemen
 export function deepQueryAll(root: SearchRoot): Element[] {
   const results: Element[] = [];
   for (const r of walkRoots(root)) {
-    results.push(...Array.from(r.querySelectorAll("*")));
+    results.push(...withoutPanelHost(r.querySelectorAll("*")));
   }
   return results;
 }
@@ -55,7 +72,7 @@ export function deepEvaluateXPath(doc: Document, expression: string): Element[] 
     );
     for (let i = 0; i < xpathResult.snapshotLength; i++) {
       const node = xpathResult.snapshotItem(i);
-      if (node instanceof Element) results.push(node);
+      if (node instanceof Element && !isPanelHost(node)) results.push(node);
     }
   } catch {
     // malformed expression

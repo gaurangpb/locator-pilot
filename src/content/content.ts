@@ -1,4 +1,5 @@
 import { addHistoryEntry, removeHistoryEntry, type HistoryEntry } from "../lib/history";
+import { PANEL_HOST_ID } from "../lib/domQuery";
 import { pickCandidates } from "../lib/locatorEngine";
 import type { BroadcastMessage, ContentResponse, ExtensionMessage } from "../lib/messages";
 import { parseLocator } from "../lib/parser";
@@ -38,7 +39,7 @@ function broadcast(payload: BroadcastMessage["payload"]): void {
 
 function main(): void {
   const host = document.createElement("div");
-  host.id = "locator-pilot-host";
+  host.id = PANEL_HOST_ID;
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent = overlayCss;

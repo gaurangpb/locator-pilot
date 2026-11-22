@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deepEvaluateXPath, deepQueryAll, deepQuerySelectorAll, getRootForElement } from "../src/lib/domQuery";
+import { PANEL_HOST_ID, deepEvaluateXPath, deepQueryAll, deepQuerySelectorAll, getRootForElement } from "../src/lib/domQuery";
 
 function setBody(html: string): Document {
   document.body.innerHTML = html;
@@ -78,5 +78,30 @@ describe("getRootForElement", () => {
     shadow.innerHTML = `<span></span>`;
     expect(getRootForElement(doc.getElementById("light")!)).toBe(doc);
     expect(getRootForElement(shadow.querySelector("span")!)).toBe(shadow);
+  });
+});
+
+describe("the extension's own panel host", () => {
+  function mountPanel(doc: Document): ShadowRoot {
+    const host = doc.createElement("div");
+    host.id = PANEL_HOST_ID;
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<div class="lp-root"><textarea placeholder="name"></textarea><button>Find on page</button></div>`;
+    doc.documentElement.appendChild(host);
+    return shadow;
+  }
+
+  it("is skipped, with everything inside it, by every deep search", () => {
+    const doc = setBody(`<button>Page button</button>`);
+    mountPanel(doc);
+    try {
+      expect(deepQuerySelectorAll(doc, "button")).toHaveLength(1);
+      expect(deepQuerySelectorAll(doc, "textarea")).toHaveLength(0);
+      expect(deepQuerySelectorAll(doc, "div")).toHaveLength(0);
+      expect(deepQueryAll(doc).some((el) => el.id === PANEL_HOST_ID || el.closest(".lp-root"))).toBe(false);
+      expect(deepEvaluateXPath(doc, "//div")).toHaveLength(0);
+    } finally {
+      doc.getElementById(PANEL_HOST_ID)!.remove();
+    }
   });
 });
